@@ -32,10 +32,10 @@ Activities (what shows in the popup) are loaded live from GitHub. Presence forma
 
 1. Click the **Syncr** icon in your Firefox toolbar
 2. Follow the setup wizard:
-   - Click **Get started**, then **Download & Install Host**
-   - When Windows asks to run the file, click **Run**
-   - If SmartScreen appears: **More info** → **Run anyway**
-   - Wait for the script window to say **Done**, then press Enter
+   - Click **Download installer**
+   - Double-click **Install-Syncr-Host.bat** in your Downloads folder
+   - When Windows asks, click **Run**
+   - After it says Done, return to the popup and click **I've run it — Connect**
 3. The popup will connect automatically and show **Connected**
 
 No administrator password is required — everything installs to your user folder.
@@ -53,7 +53,7 @@ No administrator password is required — everything installs to your user folde
 | Issue | Fix |
 |---|---|
 | Popup shows **Disconnected** | Click **Run setup** in the footer and reinstall the host |
-| Script won't run | Open Downloads → `Syncr` folder → right-click `install-host.ps1` → **Run with PowerShell** |
+| Script won't run | Open Downloads → double-click **Install-Syncr-Host.bat** (or right-click → Run) |
 | SmartScreen blocked it | Click **More info** → **Run anyway** |
 | Nothing on Discord | Confirm the Discord **desktop app** is running (not discord.com in a browser tab) |
 | Host update available | Click **Update host** in the popup banner and run the setup wizard again |

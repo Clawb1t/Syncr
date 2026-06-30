@@ -632,6 +632,7 @@ body {
   padding: 20px 18px 18px;
   display: flex;
   flex-direction: column;
+  min-height: 380px;
 }
 
 .setup-step {
@@ -639,6 +640,14 @@ body {
   flex-direction: column;
   gap: 12px;
   flex: 1;
+  min-height: 360px;
+}
+
+.setup-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
 }
 
 .setup-icon {
@@ -710,8 +719,9 @@ body {
   font-family: inherit;
   cursor: pointer;
   transition: filter .15s, transform .1s;
-  margin-top: auto;
 }
+.setup-actions .setup-btn { margin-top: 0; }
+.setup-step > .setup-btn { margin-top: auto; }
 .setup-btn:active { transform: scale(.98); }
 .setup-btn-primary {
   background: var(--accent);

@@ -109,14 +109,18 @@
     <div class="setup-step hidden" id="setup-step-install">
       <h2 class="setup-title">Install native host</h2>
       <ol class="setup-steps-list">
-        <li>Click <strong>Download &amp; Install Host</strong> below</li>
-        <li>If Windows asks &ldquo;Do you want to run this file?&rdquo; &rarr; click <strong>Run</strong></li>
+        <li>Click <strong>Download installer</strong> below</li>
+        <li>In your Downloads folder, double-click <strong>Install-Syncr-Host.bat</strong></li>
+        <li>If Windows asks to run it &rarr; click <strong>Run</strong></li>
         <li>If SmartScreen appears &rarr; <strong>More info</strong> &rarr; <strong>Run anyway</strong></li>
-        <li>Wait for the script window to say <strong>Done</strong>, then press Enter to close it</li>
+        <li>Wait until the window says <strong>Done</strong>, press Enter, then click <strong>Connect</strong> below</li>
       </ol>
       <p class="setup-note">Installs to your user folder only — no administrator password required.</p>
-      <button class="setup-btn setup-btn-primary" id="setup-btn-download">Download &amp; Install Host</button>
-      <button class="setup-btn setup-btn-secondary hidden" id="setup-btn-show-download">Show in Downloads folder</button>
+      <div class="setup-actions">
+        <button class="setup-btn setup-btn-primary" id="setup-btn-download">Download installer</button>
+        <button class="setup-btn setup-btn-secondary hidden" id="setup-btn-show-download">Open Downloads folder</button>
+        <button class="setup-btn setup-btn-primary hidden" id="setup-btn-connect">I've run it — Connect</button>
+      </div>
       <p class="setup-error hidden" id="setup-error"></p>
     </div>
 
@@ -125,7 +129,8 @@
       <div class="setup-spinner"></div>
       <h2 class="setup-title">Connecting…</h2>
       <p class="setup-lead">Waiting for Syncr to connect to the native host.</p>
-      <p class="setup-hint">If this takes more than a minute, run the installer again from the previous step.</p>
+      <p class="setup-hint">Go back and run the installer if this doesn't connect within a minute.</p>
+      <button class="setup-btn setup-btn-secondary" id="setup-btn-back-install">Back to install steps</button>
     </div>
 
     <!-- Step 4: Success -->
@@ -151,7 +156,7 @@
   <div class="settings-body">
     <div class="settings-section">
       <div class="settings-section-title">About</div>
-      <div class="settings-row"><span>Version</span><span class="settings-value">1.0.1</span></div>
+      <div class="settings-row"><span>Version</span><span class="settings-value">1.0.2</span></div>
       <div class="settings-row"><span>Native Host</span><span class="settings-value" id="s-host-status">—</span></div>
     </div>
     <div class="settings-section">

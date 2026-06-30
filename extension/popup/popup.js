@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------------------
 
 const GITHUB_RAW         = 'https://raw.githubusercontent.com/Clawb1t/Syncr/main';
-const INSTALL_SCRIPT_URL = `${GITHUB_RAW}/scripts/install-host.ps1`;
+const INSTALL_BAT_URL    = `${GITHUB_RAW}/scripts/Install-Syncr-Host.bat`;
 const REGISTRY_CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 // ---------------------------------------------------------------------------
@@ -185,10 +185,13 @@ const setupStepSuccess    = $('setup-step-success');
 const setupBtnNext        = $('setup-btn-next');
 const setupBtnDownload    = $('setup-btn-download');
 const setupBtnShowDl      = $('setup-btn-show-download');
+const setupBtnConnect     = $('setup-btn-connect');
+const setupBtnBackInstall = $('setup-btn-back-install');
 const setupBtnDone        = $('setup-btn-done');
 const setupError          = $('setup-error');
 
 let wizardStep           = 'welcome';
+let wizardActive         = false;
 let lastHostDownloadId   = null;
 let connectPollTimer     = null;
 
@@ -439,10 +442,12 @@ function showSetupStep(step) {
   setupStepConnecting.classList.toggle('hidden', step !== 'connecting');
   setupStepSuccess.classList.toggle('hidden',    step !== 'success');
   setupWizard.classList.remove('hidden');
+  wizardActive = true;
 }
 
 function hideSetupWizard() {
   setupWizard.classList.add('hidden');
+  wizardActive = false;
   if (connectPollTimer) {
     clearInterval(connectPollTimer);
     connectPollTimer = null;
@@ -453,6 +458,10 @@ function openSetupWizard(atStep = 'welcome') {
   settingsPanel.classList.add('hidden');
   setupError.classList.add('hidden');
   setupError.textContent = '';
+  if (connectPollTimer) {
+    clearInterval(connectPollTimer);
+    connectPollTimer = null;
+  }
   showSetupStep(atStep === 'install' ? 'install' : atStep);
 }
 
@@ -469,30 +478,58 @@ async function downloadHostInstaller() {
 
   try {
     const id = await browser.downloads.download({
-      url: INSTALL_SCRIPT_URL,
-      filename: 'Syncr/install-host.ps1',
+      url: INSTALL_BAT_URL,
+      filename: 'Install-Syncr-Host.bat',
       saveAs: false,
     });
     lastHostDownloadId = id;
-    setupBtnShowDl.classList.remove('hidden');
 
-    // Try to open/run the script (Windows may prompt)
+    // Wait for download to finish, then open Downloads folder (bat cannot auto-run from Firefox)
+    await waitForDownload(id);
+    setupBtnShowDl.classList.remove('hidden');
+    setupBtnConnect.classList.remove('hidden');
+    setupBtnDownload.textContent = 'Download again';
+
     try {
-      await browser.downloads.open(id);
+      await browser.downloads.show(id);
     } catch {
-      setupError.textContent = 'Could not auto-open the file. Click "Show in Downloads folder" and run install-host.ps1.';
+      setupError.textContent = 'Installer saved to Downloads. Double-click Install-Syncr-Host.bat to run it.';
       setupError.classList.remove('hidden');
     }
-
-    showSetupStep('connecting');
-    startConnectPoll();
   } catch (err) {
     setupError.textContent = err.message || 'Download failed. Check your internet connection.';
     setupError.classList.remove('hidden');
+    setupBtnDownload.textContent = 'Download installer';
   } finally {
     setupBtnDownload.disabled = false;
-    setupBtnDownload.textContent = 'Download & Install Host';
   }
+}
+
+function waitForDownload(id) {
+  return new Promise(resolve => {
+    function onChanged(delta) {
+      if (delta.id !== id || !delta.state) return;
+      if (delta.state.current === 'complete') {
+        browser.downloads.onChanged.removeListener(onChanged);
+        resolve();
+      }
+      if (delta.state.current === 'interrupted') {
+        browser.downloads.onChanged.removeListener(onChanged);
+        resolve();
+      }
+    }
+    browser.downloads.onChanged.addListener(onChanged);
+    browser.downloads.search({ id }).then(items => {
+      if (items[0]?.state === 'complete') {
+        browser.downloads.onChanged.removeListener(onChanged);
+        resolve();
+      }
+    }).catch(() => resolve());
+    setTimeout(() => {
+      browser.downloads.onChanged.removeListener(onChanged);
+      resolve();
+    }, 15000);
+  });
 }
 
 function startConnectPoll() {
@@ -508,7 +545,12 @@ function startConnectPoll() {
       await browser.storage.local.set({ hostSetupComplete: true }).catch(() => {});
       showSetupStep('success');
     }
-  }, 1500);
+  }, 2000);
+}
+
+function beginConnectStep() {
+  showSetupStep('connecting');
+  startConnectPoll();
 }
 
 setupBtnNext.addEventListener('click', () => showSetupStep('install'));
@@ -517,6 +559,14 @@ setupBtnShowDl.addEventListener('click', async () => {
   if (lastHostDownloadId != null) {
     try { await browser.downloads.show(lastHostDownloadId); } catch {}
   }
+});
+setupBtnConnect.addEventListener('click', () => beginConnectStep());
+setupBtnBackInstall.addEventListener('click', () => {
+  if (connectPollTimer) {
+    clearInterval(connectPollTimer);
+    connectPollTimer = null;
+  }
+  showSetupStep('install');
 });
 setupBtnDone.addEventListener('click', () => hideSetupWizard());
 
@@ -590,7 +640,7 @@ async function syncState(opts = {}) {
     renderNowPlaying(state.transmittingId, state.liveActivities);
     renderActivities(searchInput.value);
 
-    if (!opts.skipWizardCheck) {
+    if (!opts.skipWizardCheck && !wizardActive) {
       if (state.connected) {
         await browser.storage.local.set({ hostSetupComplete: true }).catch(() => {});
       } else if (await shouldShowWizardOnBoot()) {
