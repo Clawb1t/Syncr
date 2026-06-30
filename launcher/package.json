@@ -1,0 +1,33 @@
+{
+  "name": "syncr-launcher",
+  "version": "1.0.0",
+  "description": "Syncr Launcher — installs and updates Syncr from GitHub",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.clawb1t.syncr",
+    "productName": "Syncr",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "icon.ico"
+    ],
+    "win": {
+      "target": "portable",
+      "requestedExecutionLevel": "requireAdministrator",
+      "icon": "icon.ico"
+    },
+    "portable": {
+      "artifactName": "Syncr.exe"
+    }
+  }
+}

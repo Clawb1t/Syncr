@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Syncr</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f0f17;
+      --surface:   #17172a;
+      --surface2:  #1e1e33;
+      --accent:    #5662f6;
+      --accent-h:  #6e78ff;
+      --accent-d:  #4250e0;
+      --success:   #3fb950;
+      --warn:      #d29922;
+      --danger:    #e5534b;
+      --text:      #e2e2f0;
+      --muted:     #7b7b9a;
+      --border:    #2a2a42;
+      --radius:    12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── Title bar ─────────────────────────────────────────────────────────── */
+    .titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      height: 42px;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+    .titlebar-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .titlebar-controls {
+      display: flex;
+      gap: 6px;
+      -webkit-app-region: no-drag;
+    }
+    .titlebar-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .titlebar-btn:hover { background: var(--surface2); color: var(--text); }
+    .titlebar-btn.close:hover { background: var(--danger); color: #fff; }
+
+    /* ── Main content ──────────────────────────────────────────────────────── */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 32px 24px;
+      gap: 28px;
+    }
+
+    /* ── Brand ─────────────────────────────────────────────────────────────── */
+    .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-icon-wrap {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #5662f620, #5662f608);
+      border: 1px solid #5662f630;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .brand-icon-wrap svg {
+      width: 42px;
+      height: 42px;
+    }
+    .brand-icon-wrap.spinning svg {
+      animation: spin 1.4s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .brand-name {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+    .brand-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: -8px;
+      text-align: center;
+    }
+
+    /* ── Status card ───────────────────────────────────────────────────────── */
+    .status-card {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+    .status-row .label { color: var(--muted); }
+    .status-row .value {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .badge {
+      padding: 2px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .badge-not-installed { background: #e5534b20; color: var(--danger); }
+    .badge-installed     { background: #3fb95020; color: var(--success); }
+    .badge-update        { background: #d2992220; color: var(--warn); }
+    .badge-checking      { background: #5662f620; color: var(--accent); }
+
+    /* ── Progress ──────────────────────────────────────────────────────────── */
+    .progress-wrap {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .progress-wrap.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .progress-bar-bg {
+      width: 100%;
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+    .progress-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* ── Action button ─────────────────────────────────────────────────────── */
+    .action-btn {
+      width: 100%;
+      height: 46px;
+      border-radius: 10px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, opacity 0.15s;
+    }
+    .action-btn:hover:not(:disabled) { background: var(--accent-h); }
+    .action-btn:active:not(:disabled) { transform: scale(0.98); }
+    .action-btn:disabled {
+      background: var(--surface2);
+      color: var(--muted);
+      cursor: default;
+    }
+    .action-btn.success {
+      background: #3fb95025;
+      color: var(--success);
+      border: 1px solid #3fb95040;
+    }
+
+    /* ── Log ───────────────────────────────────────────────────────────────── */
+    .log-wrap {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .log-wrap.open .log-header { border-color: var(--border); }
+    .log-chevron { transition: transform 0.2s; }
+    .log-wrap.open .log-chevron { transform: rotate(180deg); }
+    .log-body {
+      height: 0;
+      overflow: hidden;
+      transition: height 0.2s ease;
+    }
+    .log-wrap.open .log-body { height: 120px; }
+    .log-inner {
+      padding: 10px 16px;
+      height: 120px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'SF Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .log-inner::-webkit-scrollbar { width: 4px; }
+    .log-inner::-webkit-scrollbar-track { background: transparent; }
+    .log-inner::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    .log-line { color: var(--muted); }
+    .log-line.err { color: var(--danger); }
+  </style>
+</head>
+<body>
+
+  <!-- Title bar -->
+  <div class="titlebar">
+    <span class="titlebar-label">Syncr</span>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="btn-min" title="Minimise">
+        <svg width="10" height="2" viewBox="0 0 10 2" fill="currentColor"><rect width="10" height="2" rx="1"/></svg>
+      </button>
+      <button class="titlebar-btn close" id="btn-close" title="Close">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="content">
+
+    <!-- Brand -->
+    <div class="brand">
+      <div class="brand-icon-wrap" id="icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#5662f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.5 2v6h-6"/>
+          <path d="M2.5 12A10 10 0 0 1 18.3 5.2l3.2 2.8"/>
+          <path d="M2.5 22v-6h6"/>
+          <path d="M21.5 12A10 10 0 0 1 5.7 18.8l-3.2-2.8"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">Syncr</div>
+        <div class="brand-sub">Discord Rich Presence for Firefox</div>
+      </div>
+    </div>
+
+    <!-- Status card -->
+    <div class="status-card">
+      <div class="status-row">
+        <span class="label">Status</span>
+        <span class="badge badge-checking" id="status-badge">Checking…</span>
+      </div>
+      <div class="status-row">
+        <span class="label">Installed version</span>
+        <span class="value" id="installed-ver">—</span>
+      </div>
+      <div class="status-row">
+        <span class="label">Latest version</span>
+        <span class="value" id="latest-ver">—</span>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-label" id="progress-label">Preparing…</div>
+    </div>
+
+    <!-- Action button -->
+    <button class="action-btn" id="action-btn" disabled>Checking…</button>
+
+    <!-- Log -->
+    <div class="log-wrap" id="log-wrap">
+      <div class="log-header" id="log-toggle">
+        Activity Log
+        <svg class="log-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+          <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+      <div class="log-body">
+        <div class="log-inner" id="log-inner"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
