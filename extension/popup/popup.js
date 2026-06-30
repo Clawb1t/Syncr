@@ -6,6 +6,7 @@
 
 const GITHUB_RAW         = 'https://raw.githubusercontent.com/Clawb1t/Syncr/main';
 const INSTALL_BAT_URL    = `${GITHUB_RAW}/scripts/Install-Syncr-Host.bat`;
+const INSTALL_PS1_URL    = `${GITHUB_RAW}/scripts/install-host.ps1`;
 const REGISTRY_CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 // ---------------------------------------------------------------------------
@@ -477,23 +478,30 @@ async function downloadHostInstaller() {
   setupError.classList.add('hidden');
 
   try {
-    const id = await browser.downloads.download({
-      url: INSTALL_BAT_URL,
-      filename: 'Install-Syncr-Host.bat',
+    // Download ps1 first, then bat — bat runs sibling ps1 without needing a second download
+    const ps1Id = await browser.downloads.download({
+      url: INSTALL_PS1_URL,
+      filename: 'Syncr/install-host.ps1',
       saveAs: false,
     });
-    lastHostDownloadId = id;
+    await waitForDownload(ps1Id);
 
-    // Wait for download to finish, then open Downloads folder (bat cannot auto-run from Firefox)
-    await waitForDownload(id);
+    const batId = await browser.downloads.download({
+      url: INSTALL_BAT_URL,
+      filename: 'Syncr/Install-Syncr-Host.bat',
+      saveAs: false,
+    });
+    lastHostDownloadId = batId;
+    await waitForDownload(batId);
+
     setupBtnShowDl.classList.remove('hidden');
     setupBtnConnect.classList.remove('hidden');
     setupBtnDownload.textContent = 'Download again';
 
     try {
-      await browser.downloads.show(id);
+      await browser.downloads.show(batId);
     } catch {
-      setupError.textContent = 'Installer saved to Downloads. Double-click Install-Syncr-Host.bat to run it.';
+      setupError.textContent = 'Open Downloads → Syncr folder → double-click Install-Syncr-Host.bat';
       setupError.classList.remove('hidden');
     }
   } catch (err) {
