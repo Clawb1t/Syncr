@@ -1,46 +1,30 @@
 'use strict';
 
 /**
- * Syncr Updater
- *
- * Checks the public GitHub repo for:
- *   1. New or updated activity presence files  → downloaded & replaced in-place
- *   2. A newer native-host release             → notified to the extension
- *
- * All network calls are fire-and-forget; failures are logged but never crash
- * the host.  Set GITHUB_USER and GITHUB_REPO to your public repository before
- * distributing.
+ * Syncr Updater — checks GitHub for activity + host updates.
+ * Host version is compared via native-host/version.json (NOT the GitHub release tag).
  */
 
 const https  = require('https');
 const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
+const { ACTIVITIES_DIR, VERSION_FILE } = require('./paths');
 
-// ─── Configure once when you push to GitHub ─────────────────────────────────
 const GITHUB_USER   = 'Clawb1t';
 const GITHUB_REPO   = 'Syncr';
 const GITHUB_BRANCH = 'main';
-// ────────────────────────────────────────────────────────────────────────────
 
-const RAW  = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}`;
-const API  = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}`;
+const RAW = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}`;
+const API = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}`;
 
-const ACTIVITIES_DIR = path.join(__dirname, 'activities');
-const VERSION_FILE   = path.join(__dirname, 'version.json');
-
-// ---------------------------------------------------------------------------
-// Network helpers
-// ---------------------------------------------------------------------------
-
-/** Fetch a URL to a string.  Follows up to 5 redirects. */
 function fetchText(url, hops = 5) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     https.get({
       hostname: u.hostname,
       path:     u.pathname + u.search,
-      headers:  { 'User-Agent': 'Syncr-Updater/1.0', 'Accept': '*/*' },
+      headers:  { 'User-Agent': 'Syncr-Updater/1.0', Accept: '*/*' },
     }, res => {
       if ([301, 302, 307, 308].includes(res.statusCode) && hops > 0) {
         return fetchText(res.headers.location, hops - 1).then(resolve, reject);
@@ -51,7 +35,7 @@ function fetchText(url, hops = 5) {
       }
       let body = '';
       res.on('data', c => body += c);
-      res.on('end',  () => resolve(body));
+      res.on('end', () => resolve(body));
     }).on('error', reject);
   });
 }
@@ -59,10 +43,6 @@ function fetchText(url, hops = 5) {
 async function fetchJson(url) {
   return JSON.parse(await fetchText(url));
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function sha256(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
@@ -72,7 +52,6 @@ function fileHash(p) {
   try { return sha256(fs.readFileSync(p, 'utf8')); } catch { return null; }
 }
 
-/** Atomic write — write to .tmp then rename so partial writes never corrupt */
 function writeAtomic(p, content) {
   const tmp = p + '.tmp';
   fs.writeFileSync(tmp, content, 'utf8');
@@ -84,7 +63,6 @@ function localVersion() {
   catch { return '0.0.0'; }
 }
 
-/** Returns true if semver a is strictly greater than b */
 function semverGt(a, b) {
   const pa = a.split('.').map(Number);
   const pb = b.split('.').map(Number);
@@ -95,22 +73,26 @@ function semverGt(a, b) {
   return false;
 }
 
-// ---------------------------------------------------------------------------
-// 1 — Activity updater
-// ---------------------------------------------------------------------------
+async function getRemoteHostVersion() {
+  const data = await fetchJson(`${RAW}/native-host/version.json`);
+  return data.version ?? '0.0.0';
+}
 
-/**
- * Fetches the registry from GitHub, then for each activity compares the
- * remote presence.js SHA-256 against the local copy.  If they differ the
- * local file is replaced.
- *
- * @param {Function} log  host.js–style log(level, ...args) function
- * @returns {string[]}    IDs of activities that were updated / newly added
- */
+async function getReleaseDownloads() {
+  const release = await fetchJson(`${API}/releases/latest`);
+  const assets = release.assets ?? [];
+  const find = (pred) => assets.find(pred)?.browser_download_url ?? null;
+  return {
+    tag: (release.tag_name ?? '').replace(/^v/, ''),
+    setupUrl: find(a => /^Syncr-Setup/i.test(a.name) && a.name.endsWith('.exe')),
+    hostUrl:  find(a => a.name === 'syncr-host.exe'),
+    xpiUrl:   find(a => a.name === 'syncr.xpi'),
+    notes:    release.body ?? '',
+  };
+}
+
 async function updateActivities(log) {
   const updated = [];
-
-  // Master registry lives alongside the extension activities
   let ids;
   try {
     const reg = await fetchJson(`${RAW}/extension/activities/registry.json`);
@@ -126,7 +108,7 @@ async function updateActivities(log) {
 
     try {
       const remote = await fetchText(url);
-      if (sha256(remote) === fileHash(localPath)) return; // already current
+      if (sha256(remote) === fileHash(localPath)) return;
 
       fs.mkdirSync(path.join(ACTIVITIES_DIR, id), { recursive: true });
       writeAtomic(localPath, remote);
@@ -140,38 +122,59 @@ async function updateActivities(log) {
   return updated;
 }
 
-// ---------------------------------------------------------------------------
-// 2 — Host version check
-// ---------------------------------------------------------------------------
-
-/**
- * Checks GitHub Releases for a version newer than version.json.
- *
- * @param {Function} log
- * @returns {{ available: boolean, latestVersion: string, downloadUrl: string|null, releaseNotes: string }|null}
- */
-async function checkHostUpdate(log) {
+async function getActivityStatus() {
+  const statuses = [];
+  let ids;
   try {
-    const release       = await fetchJson(`${API}/releases/latest`);
-    const latestVersion = (release.tag_name ?? '0.0.0').replace(/^v/, '');
-    const current       = localVersion();
+    const reg = await fetchJson(`${RAW}/extension/activities/registry.json`);
+    ids = reg.activities ?? reg;
+  } catch {
+    return statuses;
+  }
+
+  await Promise.all(ids.map(async id => {
+    const localPath = path.join(ACTIVITIES_DIR, id, 'presence.js');
+    const local = fileHash(localPath);
+    let remote = null;
+    try {
+      remote = sha256(await fetchText(`${RAW}/native-host/activities/${id}/presence.js`));
+    } catch {}
+
+    statuses.push({
+      id,
+      installed: !!local,
+      upToDate:  !!(local && remote && local === remote),
+      sourceUrl: `${RAW}/native-host/activities/${id}/presence.js`,
+    });
+  }));
+
+  return statuses;
+}
+
+async function checkHostUpdate(log) {
+  const current = localVersion();
+  try {
+    const latestVersion = await getRemoteHostVersion();
 
     if (!semverGt(latestVersion, current)) {
       log('info', `Updater: host is current (${current})`);
-      return { available: false, latestVersion };
+      return {
+        available:      false,
+        currentVersion: current,
+        latestVersion,
+      };
     }
 
-    // Find the host zip asset in the release
-    const asset = release.assets?.find(a =>
-      /syncr[_-]?host/i.test(a.name) && a.name.endsWith('.zip')
-    ) ?? release.assets?.[0];
+    let downloads = { setupUrl: null, hostUrl: null };
+    try { downloads = await getReleaseDownloads(); } catch {}
 
     log('info', `Updater: host update available — ${current} → ${latestVersion}`);
     return {
-      available:     true,
+      available:      true,
+      currentVersion: current,
       latestVersion,
-      downloadUrl:   asset?.browser_download_url ?? null,
-      releaseNotes:  release.body ?? '',
+      setupDownloadUrl: downloads.setupUrl,
+      hostDownloadUrl:  downloads.hostUrl,
     };
   } catch (err) {
     log('warn', `Updater: host version check failed — ${err.message}`);
@@ -179,6 +182,11 @@ async function checkHostUpdate(log) {
   }
 }
 
-// ---------------------------------------------------------------------------
-
-module.exports = { updateActivities, checkHostUpdate };
+module.exports = {
+  updateActivities,
+  checkHostUpdate,
+  getActivityStatus,
+  getRemoteHostVersion,
+  getReleaseDownloads,
+  localVersion,
+};

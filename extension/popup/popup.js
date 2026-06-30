@@ -5,9 +5,44 @@
 // ---------------------------------------------------------------------------
 
 const GITHUB_RAW         = 'https://raw.githubusercontent.com/Clawb1t/Syncr/main';
-const INSTALL_BAT_URL    = `${GITHUB_RAW}/scripts/Install-Syncr-Host.bat`;
-const INSTALL_PS1_URL    = `${GITHUB_RAW}/scripts/install-host.ps1`;
+const GITHUB_API         = 'https://api.github.com/repos/Clawb1t/Syncr';
+const RELEASES_URL       = 'https://github.com/Clawb1t/Syncr/releases/latest';
 const REGISTRY_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const EXT_VERSION        = browser.runtime.getManifest().version;
+
+function semverGt(a, b) {
+  if (!a || !b) return false;
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] ?? 0) > (pb[i] ?? 0)) return true;
+    if ((pa[i] ?? 0) < (pb[i] ?? 0)) return false;
+  }
+  return false;
+}
+
+async function fetchRemoteUpdateInfo() {
+  const [manifest, hostVer, release] = await Promise.all([
+    fetch(`${GITHUB_RAW}/extension/manifest.json`).then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch(`${GITHUB_RAW}/native-host/version.json`).then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch(`${GITHUB_API}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } })
+      .then(r => r.ok ? r.json() : null).catch(() => null),
+  ]);
+
+  const assets = release?.assets ?? [];
+  const findAsset = pred => assets.find(pred)?.browser_download_url ?? null;
+
+  return {
+    extensionVersion: manifest?.version ?? null,
+    hostVersion:      hostVer?.version ?? null,
+    releaseTag:       release?.tag_name?.replace(/^v/, '') ?? null,
+    downloads: {
+      xpi:   findAsset(a => a.name === 'syncr.xpi'),
+      host:  findAsset(a => a.name === 'syncr-host.exe'),
+      setup: findAsset(a => /^Syncr-Setup/i.test(a.name) && a.name.endsWith('.exe')),
+    },
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Activity registry — tries GitHub first (cached), falls back to local bundle
@@ -174,27 +209,9 @@ const alsoLive       = $('also-live');
 const activitiesList = $('activities-list');
 const searchInput    = $('search-input');
 const settingsPanel  = $('settings-panel');
+const updatesPanel   = $('updates-panel');
 const footer         = $('footer');
 const brandIcon      = document.querySelector('.brand-icon');
-
-// Setup wizard
-const setupWizard       = $('setup-wizard');
-const setupStepWelcome    = $('setup-step-welcome');
-const setupStepInstall    = $('setup-step-install');
-const setupStepConnecting = $('setup-step-connecting');
-const setupStepSuccess    = $('setup-step-success');
-const setupBtnNext        = $('setup-btn-next');
-const setupBtnDownload    = $('setup-btn-download');
-const setupBtnShowDl      = $('setup-btn-show-download');
-const setupBtnConnect     = $('setup-btn-connect');
-const setupBtnBackInstall = $('setup-btn-back-install');
-const setupBtnDone        = $('setup-btn-done');
-const setupError          = $('setup-error');
-
-let wizardStep           = 'welcome';
-let wizardActive         = false;
-let lastHostDownloadId   = null;
-let connectPollTimer     = null;
 
 // Dismiss update banner for the rest of this popup session
 let bannerDismissed = false;
@@ -248,14 +265,25 @@ function renderUpdateBanner(updateInfo) {
     return;
   }
 
-  const { hostUpdate, updatedActivities } = updateInfo;
+  const { hostUpdate, updatedActivities, activityStatus } = updateInfo;
+  const activityOutdated = (activityStatus ?? []).some(a => a.installed && !a.upToDate);
 
-  if (hostUpdate?.available) {
+  if (hostUpdate?.available === true) {
     updateBannerTitle.textContent = `Host Update — v${hostUpdate.latestVersion}`;
-    updateBannerSub.textContent   = 'Run the setup wizard to update the native host';
+    updateBannerSub.textContent   = `Installed v${hostUpdate.currentVersion} — run Syncr Setup to update`;
+    updateBannerBtn.href          = hostUpdate.setupDownloadUrl || RELEASES_URL;
+    updateBannerBtn.textContent   = 'Get Syncr Setup';
+    updateBannerBtn.dataset.action = 'open-updates';
+    updateBanner.classList.remove('hidden');
+    return;
+  }
+
+  if (activityOutdated) {
+    updateBannerTitle.textContent = 'Activity Updates Available';
+    updateBannerSub.textContent   = 'Open Updates to download and apply from GitHub';
     updateBannerBtn.href          = '#';
-    updateBannerBtn.textContent   = 'Update host';
-    updateBannerBtn.dataset.action = 'host-update';
+    updateBannerBtn.textContent   = 'View Updates';
+    updateBannerBtn.dataset.action = 'open-updates';
     updateBanner.classList.remove('hidden');
     return;
   }
@@ -264,7 +292,7 @@ function renderUpdateBanner(updateInfo) {
     const names = updatedActivities.join(', ');
     updateBannerTitle.textContent = 'Activities Updated';
     updateBannerSub.textContent   = `${names} — hot-reloaded automatically`;
-    updateBannerBtn.href          = 'https://github.com/Clawb1t/Syncr/releases/latest';
+    updateBannerBtn.href          = RELEASES_URL;
     updateBannerBtn.textContent   = 'Changelog';
     delete updateBannerBtn.dataset.action;
     updateBanner.classList.remove('hidden');
@@ -272,6 +300,144 @@ function renderUpdateBanner(updateInfo) {
   }
 
   updateBanner.classList.add('hidden');
+}
+
+updateBannerBtn.addEventListener('click', e => {
+  if (updateBannerBtn.dataset.action === 'open-updates') {
+    e.preventDefault();
+    openUpdatesPanel();
+  }
+});
+
+function setBadge(el, kind, text) {
+  el.className = `update-badge ${kind}`;
+  el.textContent = text;
+}
+
+function activityDisplayName(id) {
+  return ACTIVITY_META.find(a => a.id === id)?.name ?? id;
+}
+
+function renderActivitiesUpdateList(activityStatus) {
+  const list = $('u-activities-list');
+  if (!activityStatus?.length) {
+    list.innerHTML = '<div class="updates-empty">Connect to the native host and check for updates.</div>';
+    return;
+  }
+
+  list.innerHTML = activityStatus.map(a => {
+    let statusClass = 'muted';
+    let statusText  = 'Not installed';
+    if (a.installed && a.upToDate) { statusClass = 'ok'; statusText = 'Up to date'; }
+    else if (a.installed) { statusClass = 'warn'; statusText = 'Update available'; }
+    return `<div class="updates-activity-row">
+      <span class="updates-activity-name">${esc(activityDisplayName(a.id))}</span>
+      <span class="update-badge ${statusClass}">${statusText}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderUpdatesPanel(remote, hostInfo) {
+  const extLatest = remote?.extensionVersion ?? '—';
+  const hostLatest = remote?.hostVersion ?? '—';
+  const hostInstalled = hostInfo?.hostVersion ?? hostInfo?.hostUpdate?.currentVersion ?? '—';
+
+  $('u-ext-installed').textContent = EXT_VERSION;
+  $('u-ext-latest').textContent    = extLatest;
+  $('u-host-installed').textContent = currentState.connected ? hostInstalled : '—';
+  $('u-host-latest').textContent   = hostLatest;
+
+  const extOutdated = remote?.extensionVersion && semverGt(remote.extensionVersion, EXT_VERSION);
+  setBadge($('u-ext-status'), extOutdated ? 'warn' : 'ok', extOutdated ? 'Update available' : 'Up to date');
+
+  const hostOutdated = hostInfo?.hostUpdate?.available === true;
+  if (!currentState.connected) {
+    setBadge($('u-host-status'), 'muted', 'Host disconnected');
+  } else {
+    setBadge($('u-host-status'), hostOutdated ? 'warn' : 'ok', hostOutdated ? 'Update available' : 'Up to date');
+  }
+
+  const extRow = $('u-ext-download-row');
+  if (extOutdated && remote?.downloads?.xpi) {
+    extRow.classList.remove('hidden');
+    $('u-ext-download').href = remote.downloads.xpi;
+  } else {
+    extRow.classList.add('hidden');
+  }
+
+  const setupRow = $('u-host-setup-row');
+  const exeRow   = $('u-host-exe-row');
+  if (hostOutdated) {
+    setupRow.classList.remove('hidden');
+    $('u-host-setup').href = hostInfo?.hostUpdate?.setupDownloadUrl || remote?.downloads?.setup || RELEASES_URL;
+    if (remote?.downloads?.host) {
+      exeRow.classList.remove('hidden');
+      $('u-host-exe').href = remote.downloads.host;
+    } else {
+      exeRow.classList.add('hidden');
+    }
+  } else {
+    setupRow.classList.add('hidden');
+    exeRow.classList.add('hidden');
+  }
+
+  renderActivitiesUpdateList(hostInfo?.activityStatus ?? []);
+
+  const note = $('updates-host-note');
+  if (!currentState.connected) {
+    note.textContent = 'Native host is disconnected — extension and GitHub versions are shown, but activity status requires a connection.';
+  } else if (hostInfo?.updatedActivities?.length) {
+    note.textContent = `Applied updates: ${hostInfo.updatedActivities.join(', ')}`;
+  } else {
+    note.textContent = '';
+  }
+}
+
+let lastRemoteUpdateInfo = null;
+let updatesPanelOpen = false;
+
+function openUpdatesPanel() {
+  settingsPanel.classList.add('hidden');
+  updatesPanel.classList.remove('hidden');
+  updatesPanelOpen = true;
+  $('s-ext-version').textContent = EXT_VERSION;
+  renderUpdatesPanel(lastRemoteUpdateInfo, currentState.updateInfo ?? null);
+  if (!lastRemoteUpdateInfo) runUpdateCheck(false);
+}
+
+async function runUpdateCheck(apply = true) {
+  const btn = $('btn-check-updates');
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+
+  try {
+    lastRemoteUpdateInfo = await fetchRemoteUpdateInfo();
+
+    let hostInfo = currentState.updateInfo ?? null;
+    if (currentState.connected) {
+      const res = await browser.runtime.sendMessage({ type: 'host:checkUpdates', apply });
+      if (res?.ok) {
+        hostInfo = {
+          updatedActivities: res.updatedActivities ?? [],
+          activityStatus:    res.activityStatus ?? [],
+          hostUpdate:        res.hostUpdate ?? null,
+          hostVersion:       res.hostVersion ?? null,
+        };
+        currentState.updateInfo = hostInfo;
+      } else if (res?.error) {
+        $('updates-host-note').textContent = res.error;
+      }
+    }
+
+    renderUpdatesPanel(lastRemoteUpdateInfo, hostInfo);
+    renderUpdateBanner(hostInfo);
+    $('updates-last-checked').textContent = `Last checked ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    $('updates-host-note').textContent = `Check failed: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check for updates';
+  }
 }
 
 /**
@@ -433,173 +599,33 @@ function buildCard(meta) {
 }
 
 // ---------------------------------------------------------------------------
-// Setup wizard
-// ---------------------------------------------------------------------------
-
-function showSetupStep(step) {
-  wizardStep = step;
-  setupStepWelcome.classList.toggle('hidden',    step !== 'welcome');
-  setupStepInstall.classList.toggle('hidden',    step !== 'install');
-  setupStepConnecting.classList.toggle('hidden', step !== 'connecting');
-  setupStepSuccess.classList.toggle('hidden',    step !== 'success');
-  setupWizard.classList.remove('hidden');
-  wizardActive = true;
-}
-
-function hideSetupWizard() {
-  setupWizard.classList.add('hidden');
-  wizardActive = false;
-  if (connectPollTimer) {
-    clearInterval(connectPollTimer);
-    connectPollTimer = null;
-  }
-}
-
-function openSetupWizard(atStep = 'welcome') {
-  settingsPanel.classList.add('hidden');
-  setupError.classList.add('hidden');
-  setupError.textContent = '';
-  if (connectPollTimer) {
-    clearInterval(connectPollTimer);
-    connectPollTimer = null;
-  }
-  showSetupStep(atStep === 'install' ? 'install' : atStep);
-}
-
-async function shouldShowWizardOnBoot() {
-  const stored = await browser.storage.local.get('hostSetupComplete').catch(() => ({}));
-  if (!stored.hostSetupComplete) return true;
-  return false;
-}
-
-async function downloadHostInstaller() {
-  setupBtnDownload.disabled = true;
-  setupBtnDownload.textContent = 'Downloading…';
-  setupError.classList.add('hidden');
-
-  try {
-    // Download ps1 first, then bat — bat runs sibling ps1 without needing a second download
-    const ps1Id = await browser.downloads.download({
-      url: INSTALL_PS1_URL,
-      filename: 'Syncr/install-host.ps1',
-      saveAs: false,
-    });
-    await waitForDownload(ps1Id);
-
-    const batId = await browser.downloads.download({
-      url: INSTALL_BAT_URL,
-      filename: 'Syncr/Install-Syncr-Host.bat',
-      saveAs: false,
-    });
-    lastHostDownloadId = batId;
-    await waitForDownload(batId);
-
-    setupBtnShowDl.classList.remove('hidden');
-    setupBtnConnect.classList.remove('hidden');
-    setupBtnDownload.textContent = 'Download again';
-
-    try {
-      await browser.downloads.show(batId);
-    } catch {
-      setupError.textContent = 'Open Downloads → Syncr folder → double-click Install-Syncr-Host.bat';
-      setupError.classList.remove('hidden');
-    }
-  } catch (err) {
-    setupError.textContent = err.message || 'Download failed. Check your internet connection.';
-    setupError.classList.remove('hidden');
-    setupBtnDownload.textContent = 'Download installer';
-  } finally {
-    setupBtnDownload.disabled = false;
-  }
-}
-
-function waitForDownload(id) {
-  return new Promise(resolve => {
-    function onChanged(delta) {
-      if (delta.id !== id || !delta.state) return;
-      if (delta.state.current === 'complete') {
-        browser.downloads.onChanged.removeListener(onChanged);
-        resolve();
-      }
-      if (delta.state.current === 'interrupted') {
-        browser.downloads.onChanged.removeListener(onChanged);
-        resolve();
-      }
-    }
-    browser.downloads.onChanged.addListener(onChanged);
-    browser.downloads.search({ id }).then(items => {
-      if (items[0]?.state === 'complete') {
-        browser.downloads.onChanged.removeListener(onChanged);
-        resolve();
-      }
-    }).catch(() => resolve());
-    setTimeout(() => {
-      browser.downloads.onChanged.removeListener(onChanged);
-      resolve();
-    }, 15000);
-  });
-}
-
-function startConnectPoll() {
-  if (connectPollTimer) clearInterval(connectPollTimer);
-
-  connectPollTimer = setInterval(async () => {
-    await browser.runtime.sendMessage({ type: 'host:forceReconnect' }).catch(() => {});
-    await syncState({ skipWizardCheck: true });
-
-    if (currentState.connected) {
-      clearInterval(connectPollTimer);
-      connectPollTimer = null;
-      await browser.storage.local.set({ hostSetupComplete: true }).catch(() => {});
-      showSetupStep('success');
-    }
-  }, 2000);
-}
-
-function beginConnectStep() {
-  showSetupStep('connecting');
-  startConnectPoll();
-}
-
-setupBtnNext.addEventListener('click', () => showSetupStep('install'));
-setupBtnDownload.addEventListener('click', () => downloadHostInstaller());
-setupBtnShowDl.addEventListener('click', async () => {
-  if (lastHostDownloadId != null) {
-    try { await browser.downloads.show(lastHostDownloadId); } catch {}
-  }
-});
-setupBtnConnect.addEventListener('click', () => beginConnectStep());
-setupBtnBackInstall.addEventListener('click', () => {
-  if (connectPollTimer) {
-    clearInterval(connectPollTimer);
-    connectPollTimer = null;
-  }
-  showSetupStep('install');
-});
-setupBtnDone.addEventListener('click', () => hideSetupWizard());
-
-updateBannerBtn.addEventListener('click', e => {
-  if (updateBannerBtn.dataset.action === 'host-update') {
-    e.preventDefault();
-    openSetupWizard('install');
-  }
-});
-
-// ---------------------------------------------------------------------------
 // Settings panel
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 
 $('btn-settings').addEventListener('click', () => {
+  updatesPanel.classList.add('hidden');
   settingsPanel.classList.remove('hidden');
+  $('s-ext-version').textContent = EXT_VERSION;
   $('s-host-status').textContent = currentState.connected ? 'Connected' : 'Not connected';
 });
 
 $('settings-back').addEventListener('click', () => settingsPanel.classList.add('hidden'));
 
+$('btn-updates').addEventListener('click', openUpdatesPanel);
+$('open-updates').addEventListener('click', () => {
+  settingsPanel.classList.add('hidden');
+  openUpdatesPanel();
+});
+$('updates-back').addEventListener('click', () => {
+  updatesPanel.classList.add('hidden');
+  updatesPanelOpen = false;
+});
+$('btn-check-updates').addEventListener('click', () => runUpdateCheck(true));
+
 $('open-setup').addEventListener('click', e => {
   e.preventDefault();
-  settingsPanel.classList.add('hidden');
-  openSetupWizard('install');
+  browser.tabs.create({ url: RELEASES_URL });
 });
 
 async function doReconnect(btn) {
@@ -625,7 +651,7 @@ $('footer-reconnect').addEventListener('click', e => {
 
 $('footer-setup').addEventListener('click', e => {
   e.preventDefault();
-  openSetupWizard('welcome');
+  browser.tabs.create({ url: RELEASES_URL });
 });
 
 // ---------------------------------------------------------------------------
@@ -638,23 +664,18 @@ searchInput.addEventListener('input', () => renderActivities(searchInput.value))
 // State sync
 // ---------------------------------------------------------------------------
 
-async function syncState(opts = {}) {
+async function syncState() {
   try {
     const state = await browser.runtime.sendMessage({ type: 'popup:getState' });
     if (!state) return;
     currentState = state;
     setStatus(state.connected ? 'connected' : 'disconnected', state.connected ? null : state.lastError);
     renderUpdateBanner(state.updateInfo ?? null);
+    if (updatesPanelOpen) {
+      renderUpdatesPanel(lastRemoteUpdateInfo, state.updateInfo ?? null);
+    }
     renderNowPlaying(state.transmittingId, state.liveActivities);
     renderActivities(searchInput.value);
-
-    if (!opts.skipWizardCheck && !wizardActive) {
-      if (state.connected) {
-        await browser.storage.local.set({ hostSetupComplete: true }).catch(() => {});
-      } else if (await shouldShowWizardOnBoot()) {
-        openSetupWizard('welcome');
-      }
-    }
   } catch {
     setStatus('disconnected');
   }
@@ -668,6 +689,7 @@ setStatus('connecting');
 
 (async () => {
   await Promise.all([loadActivityRegistry(), loadDisabled()]);
+  $('s-ext-version').textContent = EXT_VERSION;
   renderActivities();
   await syncState();
 })();

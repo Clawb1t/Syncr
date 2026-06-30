@@ -3,6 +3,11 @@
     "syncr@clawb1t": {
       "updates": [
         {
+          "version": "1.0.5",
+          "update_link": "https://github.com/Clawb1t/Syncr/releases/download/v1.0.5/syncr.xpi",
+          "update_hash": "sha256:625eede1fc9b2ee4398986810d96f3ab4cbd0b9820950251041a5a2b8a5ece1c"
+        },
+        {
           "version": "1.0.4",
           "update_link": "https://github.com/Clawb1t/Syncr/releases/download/v1.0.4/syncr.xpi",
           "update_hash": "sha256:af14991a2c28bcc8422bf75f71bf36d0e61820c05fa0b11f20a29ff108bf5867"

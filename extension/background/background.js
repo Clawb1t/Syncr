@@ -71,6 +71,7 @@ function flushTransmitting() {
 // ---------------------------------------------------------------------------
 
 const connState = { connected: false, lastError: null, updateInfo: null };
+let pendingUpdateCheck = null;
 
 function buildPopupState() {
   const live = {};
@@ -112,9 +113,15 @@ function connect() {
     if (msg.type === 'host:updateResult') {
       connState.updateInfo = {
         updatedActivities: msg.updatedActivities ?? [],
+        activityStatus:    msg.activityStatus ?? [],
         hostUpdate:        msg.hostUpdate ?? null,
+        hostVersion:       msg.hostVersion ?? null,
         receivedAt:        Date.now(),
       };
+      if (pendingUpdateCheck) {
+        pendingUpdateCheck.resolve(connState.updateInfo);
+        pendingUpdateCheck = null;
+      }
     }
   });
 
@@ -213,6 +220,37 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'host:forceReconnect') {
     forceReconnect();
     sendResponse({ ok: true });
+    return true;
+  }
+
+  if (msg.type === 'host:checkUpdates') {
+    if (!port || !connState.connected) {
+      sendResponse({ ok: false, error: 'Native host not connected' });
+      return true;
+    }
+
+    let responded = false;
+    const respond = data => {
+      if (responded) return;
+      responded = true;
+      sendResponse(data);
+    };
+
+    const timeout = setTimeout(() => {
+      if (pendingUpdateCheck) {
+        pendingUpdateCheck = null;
+        respond({ ok: false, error: 'Update check timed out' });
+      }
+    }, 45000);
+
+    pendingUpdateCheck = {
+      resolve(info) {
+        clearTimeout(timeout);
+        respond({ ok: true, ...info });
+      },
+    };
+
+    send({ type: 'host:checkUpdates', data: { apply: msg.apply !== false } });
     return true;
   }
 

@@ -13,10 +13,15 @@ const fs   = require('fs');
 const path = require('path');
 const { loadActivities } = require('./activity-loader');
 const { RPCManager }     = require('./rpc-manager');
+const { LOG_FILE }       = require('./paths');
 
-// File log — written even when Firefox swallows stderr
-const LOG_FILE = path.join(__dirname, 'host.log');
-const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
+// File log — next to syncr-host.exe (not inside pkg snapshot)
+let logStream;
+try {
+  logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
+} catch {
+  logStream = null;
+}
 
 const activities = loadActivities();
 const rpc        = new RPCManager();
@@ -64,6 +69,33 @@ process.stdin.on('data', chunk => {
 
 async function handleMessage({ type, activityId, data }) {
   switch (type) {
+    case 'host:checkUpdates': {
+      const { updateActivities, checkHostUpdate, getActivityStatus, localVersion } = require('./updater');
+      const apply = data?.apply !== false;
+      const updatedActivities = apply ? await updateActivities(log) : [];
+
+      if (updatedActivities.length > 0) {
+        const fresh = loadActivities();
+        for (const id of updatedActivities) {
+          if (fresh.has(id)) activities.set(id, fresh.get(id));
+        }
+      }
+
+      const [activityStatus, hostUpdate] = await Promise.all([
+        getActivityStatus(),
+        checkHostUpdate(log),
+      ]);
+
+      writeMessage({
+        type: 'host:updateResult',
+        updatedActivities,
+        activityStatus,
+        hostUpdate,
+        hostVersion: localVersion(),
+      });
+      break;
+    }
+
     case 'activity:update': {
       const activity = activities.get(activityId);
       if (!activity) { log('warn', `Unknown activityId: ${activityId}`); return; }
@@ -113,7 +145,7 @@ process.on('uncaughtException',  (err)    => { log('error', 'uncaughtException:'
 
 function log(level, ...args) {
   const line = `[${new Date().toISOString()}][${level}] ${args.join(' ')}\n`;
-  logStream.write(line);
+  try { logStream?.write(line); } catch {}
   process.stderr.write(`[Syncr:${level}] ${args.join(' ')}\n`);
 }
 
@@ -125,29 +157,8 @@ log('info', `Native host started — pid=${process.pid} — ${activities.size} a
 
 setTimeout(async () => {
   try {
-    const { updateActivities, checkHostUpdate } = require('./updater');
-
-    const [updatedActivities, hostUpdate] = await Promise.all([
-      updateActivities(log),
-      checkHostUpdate(log),
-    ]);
-
-    // Hot-reload any updated presence modules into the running activities map
-    if (updatedActivities.length > 0) {
-      const fresh = loadActivities();
-      for (const id of updatedActivities) {
-        if (fresh.has(id)) {
-          activities.set(id, fresh.get(id));
-          log('info', `Hot-reloaded activity: ${id}`);
-        }
-      }
-    }
-
-    // Notify the extension so the popup can surface a banner
-    writeMessage({
-      type:               'host:updateResult',
-      updatedActivities:  updatedActivities,
-      hostUpdate:         hostUpdate ?? null,
+    handleMessage({ type: 'host:checkUpdates', data: { apply: true } }).catch(err => {
+      log('error', `Update check failed: ${err.message}`);
     });
   } catch (err) {
     log('error', `Update check failed: ${err.message}`);

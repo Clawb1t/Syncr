@@ -22,6 +22,10 @@
     </div>
     <div class="header-actions">
       <!-- Both pills share the same .hdr-pill class for visual consistency -->
+      <button class="hdr-pill" id="btn-updates">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5a.75.75 0 00.22.53l1.5 1.5a.75.75 0 101.06-1.06l-1.28-1.28V6.75z" clip-rule="evenodd"/></svg>
+        Updates
+      </button>
       <button class="hdr-pill" id="btn-settings">
         <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
         Settings
@@ -95,7 +99,7 @@
   <div class="settings-body">
     <div class="settings-section">
       <div class="settings-section-title">About</div>
-      <div class="settings-row"><span>Version</span><span class="settings-value">1.0.4</span></div>
+      <div class="settings-row"><span>Version</span><span class="settings-value" id="s-ext-version">—</span></div>
       <div class="settings-row"><span>Native Host</span><span class="settings-value" id="s-host-status">—</span></div>
     </div>
     <div class="settings-section">
@@ -103,6 +107,10 @@
       <div class="settings-row">
         <span>Native host setup</span>
         <a class="settings-link" href="#" id="open-setup">Get Syncr Setup</a>
+      </div>
+      <div class="settings-row">
+        <span>Check for updates</span>
+        <button class="settings-action-btn" id="open-updates">Open Updates</button>
       </div>
     </div>
     <div class="settings-section">
@@ -114,6 +122,80 @@
         </div>
         <button class="settings-action-btn" id="btn-reload">Reload</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Updates overlay -->
+<div class="settings-panel hidden" id="updates-panel">
+  <div class="settings-header">
+    <button class="settings-back" id="updates-back">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clip-rule="evenodd"/></svg>
+      Back
+    </button>
+    <span class="settings-title">Updates</span>
+  </div>
+  <div class="settings-body">
+    <div class="updates-toolbar">
+      <button class="updates-check-btn" id="btn-check-updates">Check for updates</button>
+      <span class="updates-last-checked" id="updates-last-checked"></span>
+    </div>
+    <p class="updates-note" id="updates-host-note"></p>
+
+    <div class="settings-section">
+      <div class="settings-section-title">Firefox Extension</div>
+      <div class="settings-row">
+        <span>Installed</span>
+        <span class="settings-value" id="u-ext-installed">—</span>
+      </div>
+      <div class="settings-row">
+        <span>Latest on GitHub</span>
+        <span class="settings-value" id="u-ext-latest">—</span>
+      </div>
+      <div class="settings-row">
+        <span>Status</span>
+        <span class="update-badge" id="u-ext-status">—</span>
+      </div>
+      <div class="settings-row hidden" id="u-ext-download-row">
+        <span>Download</span>
+        <a class="settings-link" href="#" id="u-ext-download" target="_blank">syncr.xpi</a>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">Native Host</div>
+      <div class="settings-row">
+        <span>Installed</span>
+        <span class="settings-value" id="u-host-installed">—</span>
+      </div>
+      <div class="settings-row">
+        <span>Latest on GitHub</span>
+        <span class="settings-value" id="u-host-latest">—</span>
+      </div>
+      <div class="settings-row">
+        <span>Status</span>
+        <span class="update-badge" id="u-host-status">—</span>
+      </div>
+      <div class="settings-row hidden" id="u-host-setup-row">
+        <span>Update via</span>
+        <a class="settings-link" href="#" id="u-host-setup" target="_blank">Syncr Setup</a>
+      </div>
+      <div class="settings-row hidden" id="u-host-exe-row">
+        <span>Host binary</span>
+        <a class="settings-link" href="#" id="u-host-exe" target="_blank">syncr-host.exe</a>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">Activities</div>
+      <div id="u-activities-list" class="updates-activities">
+        <div class="updates-empty">Connect to the native host and check for updates.</div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">About Syncr Setup</div>
+      <p class="updates-about">Syncr Setup does not bundle the host or extension. Each time you run it, it downloads the latest <code>syncr-host.exe</code>, activities, and <code>syncr.xpi</code> from GitHub Releases. The installer filename includes its own build version (e.g. <code>Syncr-Setup-1.0.5.exe</code>).</p>
     </div>
   </div>
 </div>
