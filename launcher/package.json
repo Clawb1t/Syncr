@@ -1,42 +1,42 @@
 {
-  "name": "syncr-launcher",
-  "version": "1.0.7",
-  "description": "Syncr Setup - one-time installer for Syncr",
-  "main": "main.js",
-  "author": "Clawb1t",
-  "scripts": {
-    "start": "electron .",
-    "build": "electron-builder --win"
-  },
-  "devDependencies": {
-    "electron": "^35.0.0",
-    "electron-builder": "^25.0.0"
-  },
-  "build": {
-    "appId": "com.clawb1t.syncr.setup",
-    "productName": "Syncr Setup",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "index.html",
-      "renderer.js",
-      "xpi-utils.js"
-    ],
-    "win": {
-      "target": "nsis"
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Syncr Setup",
-      "artifactName": "Syncr-Setup-${version}.exe",
-      "runAfterFinish": true
-    }
-  }
+    "name":  "syncr-launcher",
+    "version":  "1.0.8",
+    "description":  "Syncr Setup - one-time installer for Syncr",
+    "main":  "main.js",
+    "author":  "Clawb1t",
+    "scripts":  {
+                    "start":  "electron .",
+                    "build":  "electron-builder --win"
+                },
+    "devDependencies":  {
+                            "electron":  "^35.0.0",
+                            "electron-builder":  "^25.0.0"
+                        },
+    "build":  {
+                  "appId":  "com.clawb1t.syncr.setup",
+                  "productName":  "Syncr Setup",
+                  "directories":  {
+                                      "output":  "dist"
+                                  },
+                  "files":  [
+                                "main.js",
+                                "preload.js",
+                                "index.html",
+                                "renderer.js",
+                                "xpi-utils.js"
+                            ],
+                  "win":  {
+                              "target":  "nsis"
+                          },
+                  "nsis":  {
+                               "oneClick":  true,
+                               "perMachine":  false,
+                               "allowToChangeInstallationDirectory":  false,
+                               "createDesktopShortcut":  true,
+                               "createStartMenuShortcut":  true,
+                               "shortcutName":  "Syncr Setup",
+                               "artifactName":  "Syncr-Setup-${version}.exe",
+                               "runAfterFinish":  true
+                           }
+              }
 }

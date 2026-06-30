@@ -22,22 +22,19 @@
     </div>
     <div class="header-actions">
       <!-- Both pills share the same .hdr-pill class for visual consistency -->
-      <button class="hdr-pill" id="btn-updates">
-        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5a.75.75 0 00.22.53l1.5 1.5a.75.75 0 101.06-1.06l-1.28-1.28V6.75z" clip-rule="evenodd"/></svg>
-        Updates
+      <button class="hdr-pill hdr-pill--icon" id="btn-updates" type="button" title="Updates" aria-label="Updates">
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5a.75.75 0 00.22.53l1.5 1.5a.75.75 0 101.06-1.06l-1.28-1.28V6.75z" clip-rule="evenodd"/></svg>
       </button>
-      <button class="hdr-pill" id="btn-settings">
-        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
-        Settings
+      <button class="hdr-pill hdr-pill--icon" id="btn-settings" type="button" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
       </button>
-      <div class="hdr-pill" id="status-pill">
+      <div class="hdr-pill hdr-pill--icon hdr-pill--status" id="status-pill" title="Connecting…">
         <div class="status-dot" id="status-dot"></div>
-        <span id="status-label">Connecting…</span>
+        <span class="sr-only" id="status-label">Connecting…</span>
       </div>
     </div>
   </header>
 
-  <div class="popup-body">
   <!-- Update banner (hidden until an update is detected) -->
   <div class="update-banner hidden" id="update-banner">
     <div class="update-banner-icon">
@@ -79,7 +76,6 @@
 
   <!-- Activities -->
   <div class="activities-list" id="activities-list"></div>
-  </div>
 
   <!-- Footer -->
   <footer class="footer" id="footer">

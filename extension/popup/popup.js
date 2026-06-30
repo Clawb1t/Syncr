@@ -197,6 +197,7 @@ let disabledActivities = new Set();
 const $ = id => document.getElementById(id);
 const statusDot      = $('status-dot');
 const statusLabel    = $('status-label');
+const statusPill     = $('status-pill');
 const updateBanner   = $('update-banner');
 const updateBannerTitle = $('update-banner-title');
 const updateBannerSub   = $('update-banner-sub');
@@ -253,7 +254,9 @@ async function setActivityEnabled(id, enabled) {
 function setStatus(state, errorMsg) {
   statusDot.className = `status-dot ${state}`;
   const labels = { connected: 'Connected', disconnected: 'Disconnected', connecting: 'Connecting…' };
-  statusLabel.textContent = labels[state] || state;
+  const label = labels[state] || state;
+  statusLabel.textContent = label;
+  if (statusPill) statusPill.title = label;
   footer.classList.toggle('hidden-footer', state === 'connected');
   const errEl = $('footer-error');
   if (errEl) errEl.textContent = errorMsg ? `Error: ${errorMsg}` : '';
@@ -396,10 +399,18 @@ function renderUpdatesPanel(remote, hostInfo) {
 let lastRemoteUpdateInfo = null;
 let updatesPanelOpen = false;
 
+function syncPageScrollLock() {
+  const overlayOpen = !settingsPanel.classList.contains('hidden')
+    || !updatesPanel.classList.contains('hidden');
+  document.body.style.overflow = overlayOpen ? 'hidden' : '';
+}
+
 function openUpdatesPanel() {
   settingsPanel.classList.add('hidden');
   updatesPanel.classList.remove('hidden');
+  updatesPanel.scrollTop = 0;
   updatesPanelOpen = true;
+  syncPageScrollLock();
   $('s-ext-version').textContent = EXT_VERSION;
   renderUpdatesPanel(lastRemoteUpdateInfo, currentState.updateInfo ?? null);
   if (!lastRemoteUpdateInfo) runUpdateCheck(false);
@@ -606,11 +617,16 @@ function buildCard(meta) {
 $('btn-settings').addEventListener('click', () => {
   updatesPanel.classList.add('hidden');
   settingsPanel.classList.remove('hidden');
+  settingsPanel.scrollTop = 0;
+  syncPageScrollLock();
   $('s-ext-version').textContent = EXT_VERSION;
   $('s-host-status').textContent = currentState.connected ? 'Connected' : 'Not connected';
 });
 
-$('settings-back').addEventListener('click', () => settingsPanel.classList.add('hidden'));
+$('settings-back').addEventListener('click', () => {
+  settingsPanel.classList.add('hidden');
+  syncPageScrollLock();
+});
 
 $('btn-updates').addEventListener('click', openUpdatesPanel);
 $('open-updates').addEventListener('click', () => {
@@ -620,6 +636,7 @@ $('open-updates').addEventListener('click', () => {
 $('updates-back').addEventListener('click', () => {
   updatesPanel.classList.add('hidden');
   updatesPanelOpen = false;
+  syncPageScrollLock();
 });
 $('btn-check-updates').addEventListener('click', () => runUpdateCheck(true));
 
