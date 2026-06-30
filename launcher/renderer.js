@@ -1,146 +1,127 @@
 'use strict';
 
-// ─── Elements ─────────────────────────────────────────────────────────────────
+const logoRing    = document.getElementById('logo-ring');
+const statusChip  = document.getElementById('status-chip');
+const installedV  = document.getElementById('installed-ver');
+const latestV     = document.getElementById('latest-ver');
+const progBox     = document.getElementById('prog-box');
+const progFill    = document.getElementById('prog-fill');
+const progLabel   = document.getElementById('prog-label');
+const progPct     = document.getElementById('prog-pct');
+const actionBtn   = document.getElementById('action-btn');
+const logCard     = document.getElementById('log-card');
+const logScroll   = document.getElementById('log-scroll');
 
-const iconWrap     = document.getElementById('icon-wrap');
-const statusBadge  = document.getElementById('status-badge');
-const installedVer = document.getElementById('installed-ver');
-const latestVer    = document.getElementById('latest-ver');
-const progressWrap = document.getElementById('progress-wrap');
-const progressFill = document.getElementById('progress-fill');
-const progressLbl  = document.getElementById('progress-label');
-const actionBtn    = document.getElementById('action-btn');
-const logInner     = document.getElementById('log-inner');
-const logWrap      = document.getElementById('log-wrap');
-const logToggle    = document.getElementById('log-toggle');
+document.getElementById('btn-close').onclick = () => syncr.close();
+document.getElementById('btn-min').onclick   = () => syncr.minimize();
+document.getElementById('log-head').onclick  = () => logCard.classList.toggle('open');
 
-// ─── State ────────────────────────────────────────────────────────────────────
+// ── Log ────────────────────────────────────────────────────────────────────
 
-let checkResult = null;
-let busy = false;
-
-// ─── Window controls ──────────────────────────────────────────────────────────
-
-document.getElementById('btn-close').addEventListener('click', () => syncr.close());
-document.getElementById('btn-min').addEventListener('click',   () => syncr.minimize());
-
-// ─── Log ──────────────────────────────────────────────────────────────────────
-
-logToggle.addEventListener('click', () => logWrap.classList.toggle('open'));
-
-function appendLog(msg, isErr) {
-  const line = document.createElement('div');
-  line.className = 'log-line' + (isErr ? ' err' : '');
-  line.textContent = '› ' + msg;
-  logInner.appendChild(line);
-  logInner.scrollTop = logInner.scrollHeight;
-
-  if (!logWrap.classList.contains('open')) logWrap.classList.add('open');
+function appendLog(msg) {
+  const isErr = /error|fail|denied/i.test(msg);
+  const el = document.createElement('div');
+  el.className = 'log-line' + (isErr ? ' err' : '');
+  el.textContent = '› ' + msg;
+  logScroll.appendChild(el);
+  logScroll.scrollTop = logScroll.scrollHeight;
+  if (!logCard.classList.contains('open')) logCard.classList.add('open');
 }
 
-syncr.onLog(msg => {
-  const isErr = /error|fail|denied/i.test(msg);
-  appendLog(msg, isErr);
+syncr.onLog(appendLog);
+
+// ── Progress ───────────────────────────────────────────────────────────────
+
+syncr.onProgress(p => {
+  progBox.classList.remove('hidden');
+  const pct = Math.round(p * 100);
+  progFill.style.width  = pct + '%';
+  progPct.textContent   = pct + '%';
+  if (p >= 1) progLabel.textContent = 'Complete!';
 });
 
-// ─── Progress ─────────────────────────────────────────────────────────────────
-
-syncr.onProgress(pct => {
-  progressWrap.classList.add('visible');
-  progressFill.style.width = (pct * 100).toFixed(1) + '%';
-  progressLbl.textContent  = pct >= 1 ? 'Done!' : `${Math.round(pct * 100)}%`;
-});
-
-// ─── Status rendering ─────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 function semverGt(a, b) {
   if (!a || !b) return false;
-  const pa = a.split('.').map(Number);
-  const pb = b.split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
-    if ((pa[i] || 0) > (pb[i] || 0)) return true;
-    if ((pa[i] || 0) < (pb[i] || 0)) return false;
-  }
-  return false;
+  return a.split('.').map(Number).reduce((acc, n, i) => {
+    const bn = (b.split('.').map(Number)[i] || 0);
+    return acc === 0 ? (n > bn ? 1 : n < bn ? -1 : 0) : acc;
+  }, 0) > 0;
 }
 
-function applyState(result) {
-  checkResult = result;
-  const { hostExists, installedVersion, latestVersion, assets } = result;
-  const hasUpdate = hostExists && semverGt(latestVersion, installedVersion);
+function setChip(text, cls) {
+  statusChip.textContent = text;
+  statusChip.className   = 'chip ' + cls;
+}
 
-  installedVer.textContent = installedVersion ? `v${installedVersion}` : '—';
-  latestVer.textContent    = latestVersion     ? `v${latestVersion}`    : 'Unknown';
+// ── State ──────────────────────────────────────────────────────────────────
+
+let state = null;
+
+function applyState(s) {
+  state = s;
+  const { hostExists, installedVersion, latestVersion, assets } = s;
+  const hasUpdate = hostExists && semverGt(latestVersion, installedVersion);
+  const noAssets  = !assets?.host;
+
+  installedV.textContent = installedVersion ? 'v' + installedVersion : '—';
+  latestV.textContent    = latestVersion    ? 'v' + latestVersion    : 'Unknown';
 
   if (!hostExists) {
-    statusBadge.textContent  = 'Not installed';
-    statusBadge.className    = 'badge badge-not-installed';
-    actionBtn.textContent    = 'Install Syncr';
-    actionBtn.disabled       = !assets?.host;
-    actionBtn.className      = 'action-btn';
+    setChip('Not installed', 'chip-red');
+    actionBtn.textContent = 'Install Syncr';
+    actionBtn.disabled    = noAssets;
+    actionBtn.className   = 'btn btn-primary';
   } else if (hasUpdate) {
-    statusBadge.textContent  = `Update available`;
-    statusBadge.className    = 'badge badge-update';
-    actionBtn.textContent    = `Update to v${latestVersion}`;
-    actionBtn.disabled       = false;
-    actionBtn.className      = 'action-btn';
+    setChip('Update available', 'chip-yellow');
+    actionBtn.textContent = 'Update to v' + latestVersion;
+    actionBtn.disabled    = false;
+    actionBtn.className   = 'btn btn-primary';
   } else {
-    statusBadge.textContent  = 'Up to date';
-    statusBadge.className    = 'badge badge-installed';
-    actionBtn.textContent    = '✓ Up to date';
-    actionBtn.disabled       = true;
-    actionBtn.className      = 'action-btn success';
+    setChip('Up to date', 'chip-green');
+    actionBtn.textContent = '✓  Up to date';
+    actionBtn.disabled    = true;
+    actionBtn.className   = 'btn btn-done';
   }
 }
 
-// ─── Initial check ────────────────────────────────────────────────────────────
+// ── Boot ───────────────────────────────────────────────────────────────────
 
-async function runCheck() {
-  statusBadge.textContent = 'Checking…';
-  statusBadge.className   = 'badge badge-checking';
-  actionBtn.disabled      = true;
-  actionBtn.textContent   = 'Checking…';
-  iconWrap.classList.add('spinning');
+logoRing.classList.add('spin');
 
-  const result = await syncr.check();
-  iconWrap.classList.remove('spinning');
-  applyState(result);
-}
+syncr.check().then(s => {
+  logoRing.classList.remove('spin');
+  applyState(s);
+});
 
-runCheck();
+// ── Install / Update ───────────────────────────────────────────────────────
 
-// ─── Action button ────────────────────────────────────────────────────────────
-
+let busy = false;
 actionBtn.addEventListener('click', async () => {
-  if (busy || !checkResult) return;
+  if (busy || !state) return;
   busy = true;
-
+  logoRing.classList.add('spin');
   actionBtn.disabled    = true;
   actionBtn.textContent = 'Installing…';
-  progressWrap.classList.add('visible');
-  progressFill.style.width = '0%';
-  progressLbl.textContent  = 'Starting…';
-  iconWrap.classList.add('spinning');
+  progBox.classList.remove('hidden');
+  progFill.style.width  = '0%';
+  progLabel.textContent = 'Starting…';
+  progPct.textContent   = '0%';
 
-  const result = await syncr.install({ assets: checkResult.assets });
-
-  iconWrap.classList.remove('spinning');
+  const res = await syncr.install({ assets: state.assets });
+  logoRing.classList.remove('spin');
   busy = false;
 
-  if (result?.ok) {
-    progressLbl.textContent  = 'Done! Click "Add" in Firefox.';
-    progressFill.style.width = '100%';
-    actionBtn.textContent    = '✓ Installed — Add extension in Firefox';
-    actionBtn.className      = 'action-btn success';
-    actionBtn.disabled       = true;
-
-    statusBadge.textContent = 'Installed';
-    statusBadge.className   = 'badge badge-installed';
+  if (res?.ok) {
+    setChip('Installed', 'chip-green');
+    actionBtn.textContent = '✓  Done — click Add in Firefox';
+    actionBtn.className   = 'btn btn-done';
+    progLabel.textContent = 'All done!';
   } else {
-    progressWrap.classList.remove('visible');
     actionBtn.textContent = 'Retry';
     actionBtn.disabled    = false;
-    actionBtn.className   = 'action-btn';
-    appendLog(result?.error || 'Unknown error', true);
+    actionBtn.className   = 'btn btn-primary';
+    appendLog('Failed: ' + (res?.error || 'unknown error'));
   }
 });

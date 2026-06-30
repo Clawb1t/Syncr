@@ -1,0 +1,12 @@
+{
+  "name": "syncr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Syncr — Discord Rich Presence for Firefox",
+  "scripts": {
+    "build:xpi": "web-ext build --source-dir extension --artifacts-dir dist --overwrite-dest"
+  },
+  "devDependencies": {
+    "web-ext": "^8.0.0"
+  }
+}

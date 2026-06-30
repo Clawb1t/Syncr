@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win portable"
+    "build": "electron-builder --win"
   },
   "devDependencies": {
     "electron": "^35.0.0",
@@ -22,11 +22,17 @@
       "icon.ico"
     ],
     "win": {
-      "target": "portable",
+      "target": "nsis",
       "requestedExecutionLevel": "requireAdministrator",
       "icon": "icon.ico"
     },
-    "portable": {
+    "nsis": {
+      "oneClick": true,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Syncr",
       "artifactName": "Syncr.exe"
     }
   }

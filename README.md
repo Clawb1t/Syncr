@@ -1,155 +1,50 @@
 # Syncr
 
-Discord Rich Presence for Firefox. Shows what you're doing on the web — directly in your Discord profile. No backend, no server, no setup commands.
+Discord Rich Presence for Firefox. Shows what you're doing on the web — directly in your Discord profile. No Discord login, no cloud backend.
 
 ---
 
 ## How it works
 
-Syncr connects directly to the Discord client running on your machine via Discord's built-in local WebSocket RPC server (ports 6463-6472). Every Discord installation exposes this server locally — Syncr just talks to it.
+```
+YouTube / YouTube Music tab
+  → content script (reads the page)
+    → Firefox extension (background)
+      → native host (local app)
+        → Discord desktop app (local IPC)
+          → your Discord profile
+```
 
-```
-YouTube Music tab
-  → content script (reads DOM)
-    → background script
-      → Discord's local WebSocket (127.0.0.1:6463)
-        → your Discord profile
-```
+Activities (what shows in the popup) are loaded live from GitHub. Presence formatting is updated automatically by the native host. Your enable/disable preferences stay in local storage.
 
 ---
 
-## Setup
+## Installation
 
-### 1. Add your Discord app's Client Secret
+### Step 1 — Install the Firefox extension
 
-For each activity, open its file in `extension/activities/` and paste the Client Secret from your Discord application.
+1. Go to [GitHub Releases](https://github.com/Clawb1t/Syncr/releases/latest)
+2. Download **`syncr.xpi`**
+3. Double-click it (or drag it into Firefox)
+4. Click **Add to Firefox** when prompted
 
-For YouTube Music, open `extension/activities/youtube-music.js` and find:
+### Step 2 — Install the native host (one time)
 
-```js
-clientSecret: '', // ← paste your Discord app's Client Secret here
-```
+1. Click the **Syncr** icon in your Firefox toolbar
+2. Follow the setup wizard:
+   - Click **Get started**, then **Download & Install Host**
+   - When Windows asks to run the file, click **Run**
+   - If SmartScreen appears: **More info** → **Run anyway**
+   - Wait for the script window to say **Done**, then press Enter
+3. The popup will connect automatically and show **Connected**
 
-Get your secret from [discord.com/developers/applications](https://discord.com/developers/applications) → your app → OAuth2 → Client Secret.
+No administrator password is required — everything installs to your user folder.
 
-> The Client Secret is only used locally to exchange an auth code for a token. It is never sent anywhere except Discord's own API.
+### Step 3 — Use Syncr
 
-### 2. Load the extension in Firefox
-
-- Open `about:debugging` in Firefox
-- Click **This Firefox** → **Load Temporary Add-on**
-- Pick `extension/manifest.json`
-
-That's it.
-
-### 3. First use — authorize once
-
-The first time you open a tracked site (e.g. YouTube Music), Discord will show a **native popup** asking:
-
-> "Syncr wants to: Set your Rich Presence activity"
-
-Click **Authorize**. This happens once. The token is stored in the extension and auto-refreshed forever.
-
----
-
-## Adding a new activity
-
-### 1. Create `extension/activities/my-activity.js`
-
-```js
-(function () {
-  self.SyncrActivities = self.SyncrActivities || new Map();
-
-  self.SyncrActivities.set('my-activity', {
-    id: 'my-activity',
-    name: 'My Activity',
-    clientId: 'YOUR_DISCORD_APP_CLIENT_ID',
-    clientSecret: 'YOUR_DISCORD_APP_CLIENT_SECRET',
-    urlPattern: '*://example.com/*',
-
-    formatPresence(data) {
-      return {
-        details: data.title,
-        state: data.subtitle,
-        large_image: data.thumbnailUrl,  // https:// URL or asset key
-        large_text: 'Hover text',
-        small_image: 'icon_key',
-        small_text: 'Hover text',
-        timestamps: {
-          start: Math.floor(Date.now() / 1000) - data.elapsed,
-          end:   Math.floor(Date.now() / 1000) + data.remaining,
-        },
-        buttons: [{ label: 'Open', url: data.url }],
-      };
-    },
-  });
-})();
-```
-
-### 2. Create `extension/content-scripts/my-activity.js`
-
-```js
-(function () {
-  const ACTIVITY_ID = 'my-activity';
-  const POLL_MS = 2000;
-
-  function scrape() {
-    // read the page DOM and return a data object
-    return { title: document.title, ... };
-  }
-
-  setInterval(() => {
-    const data = scrape();
-    if (!data) {
-      browser.runtime.sendMessage({ type: 'activity:clear', activityId: ACTIVITY_ID });
-      return;
-    }
-    browser.runtime.sendMessage({ type: 'activity:update', activityId: ACTIVITY_ID, data });
-  }, POLL_MS);
-})();
-```
-
-### 3. Register both in `extension/manifest.json`
-
-Add the activity script to `background.scripts` **before** `lib/discord-rpc.js`:
-
-```json
-"background": {
-  "scripts": [
-    "activities/youtube-music.js",
-    "activities/my-activity.js",
-    "lib/discord-rpc.js",
-    "background/background.js"
-  ]
-}
-```
-
-Add the content script entry:
-
-```json
-"content_scripts": [
-  {
-    "matches": ["*://example.com/*"],
-    "js": ["content-scripts/my-activity.js"],
-    "run_at": "document_idle"
-  }
-]
-```
-
-Reload the extension in `about:debugging` and you're done.
-
----
-
-## Discord app setup (per activity)
-
-1. Go to [discord.com/developers/applications](https://discord.com/developers/applications)
-2. Create a new application (one per activity, so each has its own icon set)
-3. Copy the **Application ID** → `clientId` in the activity file
-4. Copy the **Client Secret** (OAuth2 tab) → `clientSecret` in the activity file
-5. Under **Rich Presence → Art Assets**, upload icons:
-   - `playing` — the play icon shown in the small corner image
-   - `paused` — the pause icon
-6. External image URLs (`https://...`) work as `large_image` without uploading anything
+1. Make sure **Discord is open** on your PC (desktop app, not browser)
+2. Visit a supported site (e.g. [YouTube Music](https://music.youtube.com) or [YouTube](https://www.youtube.com))
+3. Your activity appears on your Discord profile
 
 ---
 
@@ -157,7 +52,69 @@ Reload the extension in `about:debugging` and you're done.
 
 | Issue | Fix |
 |---|---|
-| Nothing appears in Discord | Make sure Discord is open, then reload the extension |
-| "clientSecret is empty" in console | Paste your secret into the activity file |
-| Authorize popup never appeared | Check `about:debugging` console for connection errors |
-| Token expired / auth loop | Clear extension storage in `about:debugging` → Inspect → Storage |
+| Popup shows **Disconnected** | Click **Run setup** in the footer and reinstall the host |
+| Script won't run | Open Downloads → `Syncr` folder → right-click `install-host.ps1` → **Run with PowerShell** |
+| SmartScreen blocked it | Click **More info** → **Run anyway** |
+| Nothing on Discord | Confirm the Discord **desktop app** is running (not discord.com in a browser tab) |
+| Host update available | Click **Update host** in the popup banner and run the setup wizard again |
+
+---
+
+## Supported activities
+
+- **YouTube Music** — listening status with album art and progress bar
+- **YouTube** — watching status with video title and channel
+
+More activities can be added via GitHub without reinstalling Syncr (metadata and Discord formatting). New sites that need page scraping require an extension update.
+
+---
+
+## Building (developers)
+
+### Requirements
+
+- [Node.js](https://nodejs.org/) 18+
+- npm
+
+### Build unsigned extension zip
+
+```powershell
+.\scripts\build-xpi.ps1
+```
+
+Output: `dist/syncr-{version}-unsigned.zip` — upload to [AMO Developer Hub](https://addons.mozilla.org/developers/) for signing.
+
+### Build native host executable
+
+```powershell
+cd native-host
+npm install
+npm run build
+```
+
+Output: `dist/syncr-host.exe` — attach to GitHub releases alongside `syncr.xpi`.
+
+### GitHub release checklist
+
+Each release `vX.Y.Z` should include:
+
+- **`syncr.xpi`** — Mozilla-signed extension
+- **`syncr-host.exe`** — native messaging host
+
+After AMO signs a new extension version, update [`updates.json`](updates.json) with the new version, download URL, and SHA-256 hash of the signed XPI.
+
+### When to publish a new extension version
+
+| Change | Extension update needed? |
+|---|---|
+| `presence.js` formatting tweaks | No — host updater handles it |
+| Activity metadata/logos on GitHub | No — popup fetches live |
+| `syncr-host.exe` bug fix | No — re-run setup wizard |
+| New activity content script or manifest URL | **Yes** |
+| Popup/background logic or permissions | **Yes** |
+
+---
+
+## License
+
+Open source — contributions welcome.

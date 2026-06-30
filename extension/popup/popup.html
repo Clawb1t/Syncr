@@ -77,10 +77,66 @@
 
   <!-- Footer -->
   <footer class="footer" id="footer">
-    <div>Not connected — <a class="footer-link" href="#" id="footer-reconnect">Reconnect</a> or <a class="footer-link" href="#" id="footer-setup">download installer</a></div>
+    <div>Not connected — <a class="footer-link" href="#" id="footer-reconnect">Reconnect</a> or <a class="footer-link" href="#" id="footer-setup">Run setup</a></div>
     <div id="footer-error" style="color:#e5534b;font-size:10px;margin-top:3px"></div>
   </footer>
 
+</div>
+
+<!-- Setup wizard -->
+<div class="setup-wizard hidden" id="setup-wizard">
+  <div class="setup-wizard-inner">
+
+    <!-- Step 1: Welcome -->
+    <div class="setup-step" id="setup-step-welcome">
+      <div class="setup-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M21.5 2v6h-6"/><path d="M2.5 12A10 10 0 0 1 18.3 5.2l3.2 2.8"/>
+          <path d="M2.5 22v-6h6"/><path d="M21.5 12A10 10 0 0 1 5.7 18.8l-3.2-2.8"/>
+        </svg>
+      </div>
+      <h2 class="setup-title">Welcome to Syncr</h2>
+      <p class="setup-lead">Syncr needs a small local app to talk to Discord. This is a <strong>one-time setup</strong> — no admin rights needed.</p>
+      <ol class="setup-preview">
+        <li>Download the host installer</li>
+        <li>Run it when Windows asks</li>
+        <li>Return here — we'll connect automatically</li>
+      </ol>
+      <button class="setup-btn setup-btn-primary" id="setup-btn-next">Get started</button>
+    </div>
+
+    <!-- Step 2: Install -->
+    <div class="setup-step hidden" id="setup-step-install">
+      <h2 class="setup-title">Install native host</h2>
+      <ol class="setup-steps-list">
+        <li>Click <strong>Download &amp; Install Host</strong> below</li>
+        <li>If Windows asks &ldquo;Do you want to run this file?&rdquo; &rarr; click <strong>Run</strong></li>
+        <li>If SmartScreen appears &rarr; <strong>More info</strong> &rarr; <strong>Run anyway</strong></li>
+        <li>Wait for the script window to say <strong>Done</strong>, then press Enter to close it</li>
+      </ol>
+      <p class="setup-note">Installs to your user folder only — no administrator password required.</p>
+      <button class="setup-btn setup-btn-primary" id="setup-btn-download">Download &amp; Install Host</button>
+      <button class="setup-btn setup-btn-secondary hidden" id="setup-btn-show-download">Show in Downloads folder</button>
+      <p class="setup-error hidden" id="setup-error"></p>
+    </div>
+
+    <!-- Step 3: Connecting -->
+    <div class="setup-step hidden" id="setup-step-connecting">
+      <div class="setup-spinner"></div>
+      <h2 class="setup-title">Connecting…</h2>
+      <p class="setup-lead">Waiting for Syncr to connect to the native host.</p>
+      <p class="setup-hint">If this takes more than a minute, run the installer again from the previous step.</p>
+    </div>
+
+    <!-- Step 4: Success -->
+    <div class="setup-step hidden" id="setup-step-success">
+      <div class="setup-icon setup-icon-success">✓</div>
+      <h2 class="setup-title">You're all set!</h2>
+      <p class="setup-lead">Open <strong>Discord</strong> on your PC, then visit YouTube Music or YouTube. Your activity will appear on your profile.</p>
+      <button class="setup-btn setup-btn-primary" id="setup-btn-done">Start using Syncr</button>
+    </div>
+
+  </div>
 </div>
 
 <!-- Settings overlay -->
@@ -95,14 +151,14 @@
   <div class="settings-body">
     <div class="settings-section">
       <div class="settings-section-title">About</div>
-      <div class="settings-row"><span>Version</span><span class="settings-value">1.0.0</span></div>
+      <div class="settings-row"><span>Version</span><span class="settings-value">1.0.1</span></div>
       <div class="settings-row"><span>Native Host</span><span class="settings-value" id="s-host-status">—</span></div>
     </div>
     <div class="settings-section">
       <div class="settings-section-title">Setup</div>
       <div class="settings-row">
         <span>Reinstall native host</span>
-        <a class="settings-link" href="#" id="open-setup">Download</a>
+        <a class="settings-link" href="#" id="open-setup">Run setup</a>
       </div>
     </div>
     <div class="settings-section">

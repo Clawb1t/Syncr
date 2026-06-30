@@ -4,7 +4,8 @@
 // GitHub source — all remote data comes from here
 // ---------------------------------------------------------------------------
 
-const GITHUB_RAW      = 'https://raw.githubusercontent.com/Clawb1t/Syncr/main';
+const GITHUB_RAW         = 'https://raw.githubusercontent.com/Clawb1t/Syncr/main';
+const INSTALL_SCRIPT_URL = `${GITHUB_RAW}/scripts/install-host.ps1`;
 const REGISTRY_CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 // ---------------------------------------------------------------------------
@@ -175,6 +176,22 @@ const settingsPanel  = $('settings-panel');
 const footer         = $('footer');
 const brandIcon      = document.querySelector('.brand-icon');
 
+// Setup wizard
+const setupWizard       = $('setup-wizard');
+const setupStepWelcome    = $('setup-step-welcome');
+const setupStepInstall    = $('setup-step-install');
+const setupStepConnecting = $('setup-step-connecting');
+const setupStepSuccess    = $('setup-step-success');
+const setupBtnNext        = $('setup-btn-next');
+const setupBtnDownload    = $('setup-btn-download');
+const setupBtnShowDl      = $('setup-btn-show-download');
+const setupBtnDone        = $('setup-btn-done');
+const setupError          = $('setup-error');
+
+let wizardStep           = 'welcome';
+let lastHostDownloadId   = null;
+let connectPollTimer     = null;
+
 // Dismiss update banner for the rest of this popup session
 let bannerDismissed = false;
 $('update-banner-dismiss').addEventListener('click', () => {
@@ -230,21 +247,22 @@ function renderUpdateBanner(updateInfo) {
   const { hostUpdate, updatedActivities } = updateInfo;
 
   if (hostUpdate?.available) {
-    updateBannerTitle.textContent = `Update Available — v${hostUpdate.latestVersion}`;
-    updateBannerSub.textContent   = 'Download the new installer to update Syncr';
-    updateBannerBtn.href          = hostUpdate.downloadUrl
-      ?? 'https://github.com/Clawb1t/Syncr/releases/latest';
-    updateBannerBtn.textContent   = 'Download';
+    updateBannerTitle.textContent = `Host Update — v${hostUpdate.latestVersion}`;
+    updateBannerSub.textContent   = 'Run the setup wizard to update the native host';
+    updateBannerBtn.href          = '#';
+    updateBannerBtn.textContent   = 'Update host';
+    updateBannerBtn.dataset.action = 'host-update';
     updateBanner.classList.remove('hidden');
     return;
   }
 
   if (updatedActivities?.length > 0) {
     const names = updatedActivities.join(', ');
-    updateBannerTitle.textContent = `Activities Updated`;
+    updateBannerTitle.textContent = 'Activities Updated';
     updateBannerSub.textContent   = `${names} — hot-reloaded automatically`;
     updateBannerBtn.href          = 'https://github.com/Clawb1t/Syncr/releases/latest';
     updateBannerBtn.textContent   = 'Changelog';
+    delete updateBannerBtn.dataset.action;
     updateBanner.classList.remove('hidden');
     return;
   }
@@ -411,6 +429,105 @@ function buildCard(meta) {
 }
 
 // ---------------------------------------------------------------------------
+// Setup wizard
+// ---------------------------------------------------------------------------
+
+function showSetupStep(step) {
+  wizardStep = step;
+  setupStepWelcome.classList.toggle('hidden',    step !== 'welcome');
+  setupStepInstall.classList.toggle('hidden',    step !== 'install');
+  setupStepConnecting.classList.toggle('hidden', step !== 'connecting');
+  setupStepSuccess.classList.toggle('hidden',    step !== 'success');
+  setupWizard.classList.remove('hidden');
+}
+
+function hideSetupWizard() {
+  setupWizard.classList.add('hidden');
+  if (connectPollTimer) {
+    clearInterval(connectPollTimer);
+    connectPollTimer = null;
+  }
+}
+
+function openSetupWizard(atStep = 'welcome') {
+  settingsPanel.classList.add('hidden');
+  setupError.classList.add('hidden');
+  setupError.textContent = '';
+  showSetupStep(atStep === 'install' ? 'install' : atStep);
+}
+
+async function shouldShowWizardOnBoot() {
+  const stored = await browser.storage.local.get('hostSetupComplete').catch(() => ({}));
+  if (!stored.hostSetupComplete) return true;
+  return false;
+}
+
+async function downloadHostInstaller() {
+  setupBtnDownload.disabled = true;
+  setupBtnDownload.textContent = 'Downloading…';
+  setupError.classList.add('hidden');
+
+  try {
+    const id = await browser.downloads.download({
+      url: INSTALL_SCRIPT_URL,
+      filename: 'Syncr/install-host.ps1',
+      saveAs: false,
+    });
+    lastHostDownloadId = id;
+    setupBtnShowDl.classList.remove('hidden');
+
+    // Try to open/run the script (Windows may prompt)
+    try {
+      await browser.downloads.open(id);
+    } catch {
+      setupError.textContent = 'Could not auto-open the file. Click "Show in Downloads folder" and run install-host.ps1.';
+      setupError.classList.remove('hidden');
+    }
+
+    showSetupStep('connecting');
+    startConnectPoll();
+  } catch (err) {
+    setupError.textContent = err.message || 'Download failed. Check your internet connection.';
+    setupError.classList.remove('hidden');
+  } finally {
+    setupBtnDownload.disabled = false;
+    setupBtnDownload.textContent = 'Download & Install Host';
+  }
+}
+
+function startConnectPoll() {
+  if (connectPollTimer) clearInterval(connectPollTimer);
+
+  connectPollTimer = setInterval(async () => {
+    await browser.runtime.sendMessage({ type: 'host:forceReconnect' }).catch(() => {});
+    await syncState({ skipWizardCheck: true });
+
+    if (currentState.connected) {
+      clearInterval(connectPollTimer);
+      connectPollTimer = null;
+      await browser.storage.local.set({ hostSetupComplete: true }).catch(() => {});
+      showSetupStep('success');
+    }
+  }, 1500);
+}
+
+setupBtnNext.addEventListener('click', () => showSetupStep('install'));
+setupBtnDownload.addEventListener('click', () => downloadHostInstaller());
+setupBtnShowDl.addEventListener('click', async () => {
+  if (lastHostDownloadId != null) {
+    try { await browser.downloads.show(lastHostDownloadId); } catch {}
+  }
+});
+setupBtnDone.addEventListener('click', () => hideSetupWizard());
+
+updateBannerBtn.addEventListener('click', e => {
+  if (updateBannerBtn.dataset.action === 'host-update') {
+    e.preventDefault();
+    openSetupWizard('install');
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Settings panel
 // ---------------------------------------------------------------------------
 
@@ -423,7 +540,8 @@ $('settings-back').addEventListener('click', () => settingsPanel.classList.add('
 
 $('open-setup').addEventListener('click', e => {
   e.preventDefault();
-  browser.tabs.create({ url: 'https://github.com/Clawb1t/Syncr/releases/latest' });
+  settingsPanel.classList.add('hidden');
+  openSetupWizard('install');
 });
 
 async function doReconnect(btn) {
@@ -449,7 +567,7 @@ $('footer-reconnect').addEventListener('click', e => {
 
 $('footer-setup').addEventListener('click', e => {
   e.preventDefault();
-  browser.tabs.create({ url: 'https://github.com/Clawb1t/Syncr/releases/latest' });
+  openSetupWizard('welcome');
 });
 
 // ---------------------------------------------------------------------------
@@ -462,7 +580,7 @@ searchInput.addEventListener('input', () => renderActivities(searchInput.value))
 // State sync
 // ---------------------------------------------------------------------------
 
-async function syncState() {
+async function syncState(opts = {}) {
   try {
     const state = await browser.runtime.sendMessage({ type: 'popup:getState' });
     if (!state) return;
@@ -471,6 +589,14 @@ async function syncState() {
     renderUpdateBanner(state.updateInfo ?? null);
     renderNowPlaying(state.transmittingId, state.liveActivities);
     renderActivities(searchInput.value);
+
+    if (!opts.skipWizardCheck) {
+      if (state.connected) {
+        await browser.storage.local.set({ hostSetupComplete: true }).catch(() => {});
+      } else if (await shouldShowWizardOnBoot()) {
+        openSetupWizard('welcome');
+      }
+    }
   } catch {
     setStatus('disconnected');
   }

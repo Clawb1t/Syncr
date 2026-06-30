@@ -26,10 +26,11 @@ let win;
 
 function createWindow() {
   win = new BrowserWindow({
-    width:  480,
-    height: 620,
-    frame:  false,
-    resizable: false,
+    width:        480,
+    height:       620,
+    frame:        false,
+    resizable:    false,
+    show:         false,
     backgroundColor: '#0f0f17',
     webPreferences: {
       preload:          path.join(__dirname, 'preload.js'),
@@ -39,6 +40,7 @@ function createWindow() {
   });
 
   win.loadFile('index.html');
+  win.once('ready-to-show', () => win.show());
 }
 
 app.whenReady().then(createWindow);

@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Syncr",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Display what you're doing in Firefox as Discord Rich Presence.",
   "author": "Syncr Contributors",
 
@@ -14,7 +14,8 @@
     "tabs",
     "activeTab",
     "nativeMessaging",
-    "storage"
+    "storage",
+    "downloads"
   ],
 
   "browser_action": {

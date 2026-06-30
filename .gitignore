@@ -4,15 +4,5 @@ extension/secrets.js
 # Dependencies
 node_modules/
 
-# Launcher build artefacts
-launcher/dist/
-launcher/build-log.txt
-launcher/build.ps1
-
-# Installer artefacts
-installer/dist/SyncrSetup*.exe
-installer/dist/syncr-1.0.0.zip
-installer/dist/syncr-unsigned.zip
-installer/fix-install.ps1
-installer/install-manual.ps1
-installer/Install-Syncr.bat
+# Build output
+dist/
