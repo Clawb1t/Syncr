@@ -3,6 +3,7 @@
 # Registers HKCU native messaging for Firefox
 
 $ErrorActionPreference = 'Stop'
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $GITHUB_USER   = 'Clawb1t'
 $GITHUB_REPO   = 'Syncr'
