@@ -21,6 +21,30 @@ Write-Host ''
 Write-Host '  Syncr — Installing native host...' -ForegroundColor Cyan
 Write-Host ''
 
+function Stop-SyncrHost {
+    $procs = Get-Process -Name 'syncr-host' -ErrorAction SilentlyContinue
+    if (-not $procs) { return }
+    Write-Host '  Stopping running Syncr host...'
+    $procs | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
+}
+
+function Set-HostExe($sourcePath, $destPath) {
+    Stop-SyncrHost
+    for ($i = 0; $i -lt 5; $i++) {
+        try {
+            if (Test-Path $destPath) { Remove-Item $destPath -Force }
+            Move-Item -Path $sourcePath -Destination $destPath -Force
+            return
+        } catch {
+            if ($i -eq 4) { throw }
+            Write-Host '  Waiting for host to release file...'
+            Stop-SyncrHost
+            Start-Sleep -Seconds 2
+        }
+    }
+}
+
 # Directories
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 foreach ($act in $Activities) {
@@ -39,7 +63,9 @@ if (-not $hostAsset) {
 }
 
 Write-Host "  Downloading syncr-host.exe (v$($release.tag_name))..."
-Invoke-WebRequest -Uri $hostAsset.browser_download_url -OutFile $HostExe -UseBasicParsing
+$hostTmp = "$HostExe.new"
+Invoke-WebRequest -Uri $hostAsset.browser_download_url -OutFile $hostTmp -UseBasicParsing
+Set-HostExe $hostTmp $HostExe
 
 # Activity presence files + version
 foreach ($act in $Activities) {
@@ -73,5 +99,6 @@ Write-Host '  Done! Syncr host installed to:' -ForegroundColor Green
 Write-Host "  $InstallDir"
 Write-Host ''
 Write-Host '  Return to Firefox — the Syncr popup should show Connected.'
+Write-Host '  If still disconnected, reload the extension from the popup settings.'
 Write-Host ''
 Read-Host '  Press Enter to close'
