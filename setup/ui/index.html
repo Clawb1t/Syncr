@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Syncr Setup</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Site header ─────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-logo">
+      <svg viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.9)" stroke-width="1.8"/>
+        <path d="M7 12c0-2.8 2.2-5 5-5 1.4 0 2.7.6 3.6 1.5" stroke="rgba(255,255,255,.9)" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M17 12c0 2.8-2.2 5-5 5-1.4 0-2.7-.6-3.6-1.5" stroke="rgba(255,255,255,.9)" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M15.5 7l1 3-3-.8" stroke="rgba(255,255,255,.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8.5 17l-1-3 3 .8" stroke="rgba(255,255,255,.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="header-logo-text">Syncr</span>
+    </div>
+    <span class="header-badge">Setup</span>
+  </header>
+
+  <div class="page">
+
+    <!-- Progress track -->
+    <div class="progress-track">
+      <div class="progress-step active" data-step="1">
+        <div class="step-bubble">1</div>
+        <span class="step-label">Install Host</span>
+      </div>
+      <div class="progress-line" id="line-1-2"></div>
+      <div class="progress-step" data-step="2">
+        <div class="step-bubble">2</div>
+        <span class="step-label">Load Extension</span>
+      </div>
+      <div class="progress-line" id="line-2-3"></div>
+      <div class="progress-step" data-step="3">
+        <div class="step-bubble">3</div>
+        <span class="step-label">All Set</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Install Host -->
+    <div class="card" id="card-step-1">
+      <div class="card-header">
+        <div class="card-number">01</div>
+        <div class="card-title-group">
+          <h2>Install Syncr Host</h2>
+          <p>A lightweight service that bridges Firefox to your Discord client. Runs automatically — no terminal required.</p>
+        </div>
+      </div>
+
+      <div class="checks">
+        <div class="check-row" id="check-node">
+          <div class="check-icon spin"></div>
+          <span class="check-text">Checking Node.js…</span>
+        </div>
+      </div>
+
+      <div class="already-installed hidden" id="already-installed">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+        Syncr Host is already installed — you can reinstall to update.
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-primary" id="btn-install" disabled>
+          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a.75.75 0 01.75.75v8.69l2.47-2.47a.75.75 0 011.06 1.06l-3.75 3.75a.75.75 0 01-1.06 0L5.72 10.03a.75.75 0 111.06-1.06l2.47 2.47V2.75A.75.75 0 0110 2zm-8 13.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clip-rule="evenodd"/></svg>
+          <span id="btn-install-text">Install Syncr Host</span>
+        </button>
+        <div class="inline-status" id="install-status"></div>
+      </div>
+
+      <div class="error-box hidden" id="install-error"></div>
+    </div>
+
+    <!-- Step 2: Load Extension -->
+    <div class="card card-locked" id="card-step-2">
+      <div class="card-header">
+        <div class="card-number">02</div>
+        <div class="card-title-group">
+          <h2>Load the Extension</h2>
+          <p>Add Syncr to Firefox. You only need to do this once.</p>
+        </div>
+      </div>
+
+      <ol class="steps-list">
+        <li>Open Firefox and navigate to <a href="#" class="code-link" id="about-debugging-link">about:debugging</a></li>
+        <li>Click <strong>This Firefox</strong> in the left sidebar</li>
+        <li>Click <strong>Load Temporary Add-on…</strong></li>
+        <li>
+          Select <code>manifest.json</code> from this path:
+          <div class="path-box">
+            <span class="path-text" id="extension-path">Loading…</span>
+            <button class="copy-btn" id="copy-path" title="Copy path">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V12.5a1.5 1.5 0 01-1.5 1.5h-1v-3.379a3 3 0 00-.879-2.121L10.5 5.379A3 3 0 008.379 4.5H7v-1z"/><path d="M4.5 6A1.5 1.5 0 003 7.5v9A1.5 1.5 0 004.5 18h7a1.5 1.5 0 001.5-1.5v-5.879a1.5 1.5 0 00-.44-1.06L9.44 6.439A1.5 1.5 0 008.378 6H4.5z"/></svg>
+            </button>
+          </div>
+        </li>
+      </ol>
+
+      <!-- Preview of the extension popup -->
+      <div class="preview-panel">
+        <div class="preview-header">
+          <span>Syncr</span>
+          <span style="font-size:11px;font-weight:400;opacity:.6">This is what you'll see after loading</span>
+        </div>
+        <div class="preview-label">Installed activities</div>
+        <div class="preview-activity">
+          <div class="preview-act-icon">🎵</div>
+          <span class="preview-act-name">YouTube Music</span>
+          <span class="preview-act-cat">Music</span>
+        </div>
+      </div>
+
+      <div class="action-row" style="margin-top:18px">
+        <button class="btn btn-primary" id="btn-done-ext">
+          I've loaded the extension →
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 3: All set -->
+    <div class="card card-locked" id="card-step-3">
+      <div class="success-state">
+        <div class="success-ring">
+          <svg class="success-check" viewBox="0 0 52 52" fill="none">
+            <circle class="success-circle" cx="26" cy="26" r="23" stroke-width="2.5"/>
+            <path class="success-path" d="M14 27l8 8 16-16" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 class="success-title">You're all set!</h2>
+        <p class="success-body">
+          Make sure Discord is open, then head to <strong>YouTube Music</strong> and start listening.
+          Your activity will appear in Discord automatically.
+        </p>
+        <div class="success-hint">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg>
+          Click the <strong>Syncr icon</strong> in your Firefox toolbar to see live status and manage activities.
+        </div>
+        <button class="btn btn-ghost" onclick="window.close()">Close setup</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="wizard.js"></script>
+</body>
+</html>

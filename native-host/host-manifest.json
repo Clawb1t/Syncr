@@ -1,0 +1,9 @@
+{
+  "name": "syncr",
+  "description": "Syncr native messaging host — Discord Rich Presence bridge",
+  "path": "C:\\Users\\coal1\\OneDrive\\Documents\\Coal\\Syncr\\native-host\\host.bat",
+  "type": "stdio",
+  "allowed_extensions": [
+    "syncr@syncr.local"
+  ]
+}

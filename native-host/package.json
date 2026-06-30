@@ -1,0 +1,10 @@
+{
+  "name": "syncr-native-host",
+  "version": "1.0.0",
+  "description": "Syncr native messaging host — IPC bridge to Discord",
+  "main": "host.js",
+  "license": "MIT",
+  "dependencies": {
+    "discord-rpc": "^4.0.1"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "syncr-setup",
+  "version": "1.0.0",
+  "description": "Syncr setup wizard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,13 @@
+{
+  "id":           "youtube",
+  "name":         "YouTube",
+  "description":  "Tracks videos on youtube.com",
+  "category":     "Video",
+  "icon":         "▶️",
+  "logo":         "logo.png",
+  "version":      "1.0.0",
+  "author":       "Syncr Contributors",
+  "urlPattern":   "*://www.youtube.com/watch*",
+  "buttonLabel":  "Watch on YouTube",
+  "activityType": "WATCHING"
+}

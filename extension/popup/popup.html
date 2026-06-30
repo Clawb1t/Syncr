@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Syncr</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+<div class="popup">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-brand">
+      <svg class="brand-icon" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.9)" stroke-width="1.8"/>
+        <path d="M7 12c0-2.8 2.2-5 5-5 1.4 0 2.7.6 3.6 1.5" stroke="rgba(255,255,255,.9)" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M17 12c0 2.8-2.2 5-5 5-1.4 0-2.7-.6-3.6-1.5" stroke="rgba(255,255,255,.9)" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M15.5 7l1 3-3-.8" stroke="rgba(255,255,255,.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8.5 17l-1-3 3 .8" stroke="rgba(255,255,255,.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-name">Syncr</span>
+    </div>
+    <div class="header-actions">
+      <!-- Both pills share the same .hdr-pill class for visual consistency -->
+      <button class="hdr-pill" id="btn-settings">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+        Settings
+      </button>
+      <div class="hdr-pill" id="status-pill">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-label">Connecting…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Transmitting activity strip -->
+  <div class="live-strip hidden" id="now-playing">
+    <div class="live-logo" id="np-logo">🔌</div>
+    <div class="live-info">
+      <span class="live-name" id="np-activity-tag">Activity</span>
+      <span class="live-title hidden" id="np-title"></span>
+      <span class="live-label">Transmitting to Discord</span>
+    </div>
+    <div class="live-dot"></div>
+  </div>
+
+  <!-- Other live activities (shown when multiple are active) -->
+  <div class="also-live hidden" id="also-live"></div>
+
+  <!-- Search -->
+  <div class="search-row">
+    <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/></svg>
+    <input class="search-input" id="search-input" type="text" placeholder="Search activities…" autocomplete="off" spellcheck="false" />
+  </div>
+
+  <!-- Activities -->
+  <div class="activities-list" id="activities-list"></div>
+
+  <!-- Footer -->
+  <footer class="footer" id="footer">
+    <div>Not connected — <a class="footer-link" href="#" id="footer-reconnect">Reconnect</a> or <a class="footer-link" href="#" id="footer-setup">open setup wizard</a></div>
+    <div id="footer-error" style="color:#e5534b;font-size:10px;margin-top:3px"></div>
+  </footer>
+
+</div>
+
+<!-- Settings overlay -->
+<div class="settings-panel hidden" id="settings-panel">
+  <div class="settings-header">
+    <button class="settings-back" id="settings-back">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clip-rule="evenodd"/></svg>
+      Back
+    </button>
+    <span class="settings-title">Settings</span>
+  </div>
+  <div class="settings-body">
+    <div class="settings-section">
+      <div class="settings-section-title">About</div>
+      <div class="settings-row"><span>Version</span><span class="settings-value">1.0.0</span></div>
+      <div class="settings-row"><span>Native Host</span><span class="settings-value" id="s-host-status">—</span></div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Setup</div>
+      <div class="settings-row">
+        <span>Reinstall native host</span>
+        <a class="settings-link" href="#" id="open-setup">Open wizard</a>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Extension</div>
+      <div class="settings-row">
+        <div>
+          <div style="color:var(--text-1);font-size:13px">Reload extension</div>
+          <div style="color:var(--text-3);font-size:11px;margin-top:2px">Restarts Syncr and reconnects to the native host</div>
+        </div>
+        <button class="settings-action-btn" id="btn-reload">Reload</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

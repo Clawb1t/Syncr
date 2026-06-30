@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <rect width="48" height="48" rx="10" fill="#1a0a0a"/>
+  <!-- Outer ring -->
+  <circle cx="24" cy="24" r="17" fill="none" stroke="#ff0000" stroke-width="2.5"/>
+  <!-- Inner filled circle -->
+  <circle cx="24" cy="24" r="10" fill="#ff0000"/>
+  <!-- Play triangle -->
+  <polygon points="21,19 21,29 30,24" fill="white"/>
+</svg>

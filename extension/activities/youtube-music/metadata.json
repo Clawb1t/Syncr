@@ -1,0 +1,13 @@
+{
+  "id":           "youtube-music",
+  "name":         "YouTube Music",
+  "description":  "Tracks songs on music.youtube.com",
+  "category":     "Music",
+  "icon":         "🎵",
+  "logo":         "logo.png",
+  "version":      "1.0.0",
+  "author":       "Syncr Contributors",
+  "urlPattern":   "*://music.youtube.com/*",
+  "buttonLabel":  "Listen on YouTube Music",
+  "activityType": "LISTENING TO"
+}
