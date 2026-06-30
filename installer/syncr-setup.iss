@@ -14,7 +14,7 @@
 #define AppVersion   "1.0.0"
 #define AppPublisher "Clawb1t"
 #define AppURL       "https://github.com/Clawb1t/Syncr"
-#define AppID        "syncr@syncr.local"
+#define AppID        "syncr@clawb1t"
 #define HostExe      "syncr-host.exe"
 #define HostManifest "syncr.json"
 

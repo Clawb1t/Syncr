@@ -88,6 +88,17 @@ async function loadActivityRegistry() {
 // Image resolution
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// HTML sanitizer — used wherever dynamic values go into innerHTML
+// ---------------------------------------------------------------------------
+
+/** Escape a value so it is safe to embed in HTML attribute or text content */
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s ?? '');
+  return d.innerHTML;
+}
+
 const IMAGE_EXTS = ['png', 'svg', 'jpg', 'webp'];
 const _imageCache = {};
 
@@ -270,9 +281,16 @@ function renderNowPlaying(transmittingId, liveActivitiesObj) {
 
     nowPlaying.classList.remove('hidden');
     npTag.textContent = meta?.name || transmittingId;
-    npLogo.innerHTML  = imgUrl
-      ? `<img src="${imgUrl}" alt="${meta?.name || ''}" style="width:100%;height:100%;object-fit:cover;border-radius:5px" />`
-      : (meta?.icon || '🔌');
+    npLogo.textContent = '';
+    if (imgUrl) {
+      const img = document.createElement('img');
+      img.src   = imgUrl;
+      img.alt   = meta?.name || '';
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:5px';
+      npLogo.appendChild(img);
+    } else {
+      npLogo.textContent = meta?.icon || '🔌';
+    }
 
     if (info?.title) {
       npTitle.textContent = info.sub ? `${info.title} - ${info.sub}` : info.title;
@@ -306,19 +324,19 @@ function renderNowPlaying(transmittingId, liveActivitiesObj) {
       const imgUrl = meta ? resolveActivityImage(meta) : null;
       const info   = getActivityTitle(liveActivitiesObj?.[id]);
       const logo   = imgUrl
-        ? `<img src="${imgUrl}" alt="${meta?.name || ''}" style="width:100%;height:100%;object-fit:cover;border-radius:5px" />`
-        : (meta?.icon || '🔌');
-      const subLine = info?.title
-        ? `<span class="also-live-sub">${info.sub ? `${info.title} - ${info.sub}` : info.title}</span>`
-        : `<span class="also-live-sub">Live · not transmitting</span>`;
+        ? `<img src="${esc(imgUrl)}" alt="${esc(meta?.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:5px" />`
+        : esc(meta?.icon || '🔌');
+      const subText = info?.title
+        ? (info.sub ? `${esc(info.title)} \u2014 ${esc(info.sub)}` : esc(info.title))
+        : 'Live \u00b7 not transmitting';
       return `
         <div class="also-live-row">
           <div class="also-live-logo">${logo}</div>
           <div class="also-live-info">
-            <span class="also-live-name">${meta?.name || id}</span>
-            ${subLine}
+            <span class="also-live-name">${esc(meta?.name || id)}</span>
+            <span class="also-live-sub">${subText}</span>
           </div>
-          <button class="switch-btn" data-switch="${id}">
+          <button class="switch-btn" data-switch="${esc(id)}">
             ${swapIcon}
             Switch
           </button>
@@ -341,11 +359,11 @@ function renderActivities(filter = '') {
   );
 
   if (filtered.length === 0) {
-    activitiesList.innerHTML = `
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-        ${ACTIVITY_META.length === 0 ? 'No activities installed.' : 'No activities match your search.'}
-      </div>`;
+    const msg = ACTIVITY_META.length === 0 ? 'No activities installed.' : 'No activities match your search.';
+    activitiesList.innerHTML =
+      `<div class="empty-state"><svg viewBox="0 0 24 24" fill="currentColor">` +
+      `<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>` +
+      `</svg>${esc(msg)}</div>`;
     return;
   }
 
@@ -369,22 +387,22 @@ function buildCard(meta) {
   const imgUrl    = resolveActivityImage(meta);
 
   const logoInner = imgUrl
-    ? `<img src="${imgUrl}" alt="${meta.name}" style="width:100%;height:100%;object-fit:cover;border-radius:5px" />`
-    : `<span style="font-size:20px;line-height:1">${meta.icon || '🔌'}</span>`;
+    ? `<img src="${esc(imgUrl)}" alt="${esc(meta.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:5px" />`
+    : `<span style="font-size:20px;line-height:1">${esc(meta.icon || '🔌')}</span>`;
 
   return `
-    <div class="activity-card ${isActive ? 'active-now' : ''} ${!isEnabled ? 'is-disabled' : ''}" data-id="${meta.id}">
+    <div class="activity-card ${isActive ? 'active-now' : ''} ${!isEnabled ? 'is-disabled' : ''}" data-id="${esc(meta.id)}">
       <div class="ac-logo">${logoInner}</div>
       <div class="ac-body">
         <div class="ac-name-row">
-          <span class="ac-name">${meta.name}</span>
-          <span class="ac-tag">${isActive ? 'Live' : (meta.category || '')}</span>
+          <span class="ac-name">${esc(meta.name)}</span>
+          <span class="ac-tag">${isActive ? 'Live' : esc(meta.category || '')}</span>
         </div>
-        <div class="ac-desc">${meta.description || ''}</div>
+        <div class="ac-desc">${esc(meta.description || '')}</div>
       </div>
       <div class="toggle-wrap">
-        <label class="toggle" title="${isEnabled ? 'Disable' : 'Enable'} ${meta.name}">
-          <input type="checkbox" ${isEnabled ? 'checked' : ''} data-id="${meta.id}" />
+        <label class="toggle" title="${isEnabled ? 'Disable' : 'Enable'} ${esc(meta.name)}">
+          <input type="checkbox" ${isEnabled ? 'checked' : ''} data-id="${esc(meta.id)}" />
           <div class="toggle-track"></div>
           <div class="toggle-thumb"></div>
         </label>

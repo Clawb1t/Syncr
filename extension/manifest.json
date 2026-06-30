@@ -51,16 +51,15 @@
     "activities/*/logo.webp"
   ],
 
-  "data_collection_permissions": {
-    "required": [],
-    "optional": []
-  },
-
   "browser_specific_settings": {
     "gecko": {
-      "id": "syncr@syncr.local",
+      "id": "syncr@clawb1t",
       "strict_min_version": "91.0",
-      "update_url": "https://raw.githubusercontent.com/Clawb1t/Syncr/main/updates.json"
+      "update_url": "https://raw.githubusercontent.com/Clawb1t/Syncr/main/updates.json",
+      "data_collection_permissions": {
+        "required": ["none"],
+        "optional": []
+      }
     }
   }
 }
