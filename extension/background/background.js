@@ -70,7 +70,7 @@ function flushTransmitting() {
 // State exposed to the popup
 // ---------------------------------------------------------------------------
 
-const connState = { connected: false, lastError: null };
+const connState = { connected: false, lastError: null, updateInfo: null };
 
 function buildPopupState() {
   const live = {};
@@ -78,6 +78,7 @@ function buildPopupState() {
   return {
     connected:      connState.connected,
     lastError:      connState.lastError,
+    updateInfo:     connState.updateInfo,
     transmittingId,
     preferredId:    preferredActivityId,
     liveActivities: live,
@@ -105,6 +106,17 @@ function connect() {
 
   connState.connected = true;
   connState.lastError = null;
+
+  port.onMessage.addListener(msg => {
+    if (!msg?.type) return;
+    if (msg.type === 'host:updateResult') {
+      connState.updateInfo = {
+        updatedActivities: msg.updatedActivities ?? [],
+        hostUpdate:        msg.hostUpdate ?? null,
+        receivedAt:        Date.now(),
+      };
+    }
+  });
 
   port.onDisconnect.addListener(() => {
     const err = browser.runtime.lastError;

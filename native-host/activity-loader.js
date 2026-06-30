@@ -1,7 +1,11 @@
 const fs   = require('fs');
 const path = require('path');
 
-const ACTIVITIES_DIR = path.join(__dirname, 'activities');
+// When bundled with `pkg` into syncr-host.exe, __dirname resolves to the
+// virtual snapshot — use process.execPath so activities are always loaded
+// from the real filesystem next to the exe, where the updater can write them.
+const BASE_DIR       = process.pkg ? path.dirname(process.execPath) : __dirname;
+const ACTIVITIES_DIR = path.join(BASE_DIR, 'activities');
 
 /**
  * Scans native-host/activities/ for activity folders.

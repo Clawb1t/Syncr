@@ -1,20 +1,73 @@
 'use strict';
 
 // ---------------------------------------------------------------------------
-// Activity registry — loaded dynamically from activities/registry.json
-// and each activity's metadata.json
+// GitHub source — all remote data comes from here
+// ---------------------------------------------------------------------------
+
+const GITHUB_RAW      = 'https://raw.githubusercontent.com/Clawb1t/Syncr/main';
+const REGISTRY_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+// ---------------------------------------------------------------------------
+// Activity registry — tries GitHub first (cached), falls back to local bundle
 // ---------------------------------------------------------------------------
 
 let ACTIVITY_META = []; // populated by loadActivityRegistry() on boot
 
 async function loadActivityRegistry() {
+  // Try remote registry (GitHub raw) with 1-hour cache
   try {
-    // Fetch the registry. Currently local; in future this URL can be swapped
-    // for a remote source (e.g. GitHub raw) and the rest of the loader stays
-    // identical — only per-activity logos/metadata need a CDN prefix.
+    const cached = await browser.storage.local.get('_registryCache').catch(() => ({}));
+    const cache  = cached._registryCache;
+
+    let ids;
+
+    if (cache && Date.now() - cache.ts < REGISTRY_CACHE_TTL) {
+      // Use cached data — still fast on re-open
+      ACTIVITY_META = cache.metas;
+      return;
+    }
+
+    // Fetch fresh from GitHub (5-second timeout)
+    const controller = new AbortController();
+    const timer      = setTimeout(() => controller.abort(), 5000);
+
+    try {
+      const reg = await fetch(`${GITHUB_RAW}/extension/activities/registry.json`,
+        { signal: controller.signal }).then(r => r.json());
+      clearTimeout(timer);
+      ids = reg.activities ?? reg;
+
+      const metas = await Promise.all(
+        ids.map(id =>
+          fetch(`${GITHUB_RAW}/extension/activities/${id}/metadata.json`)
+            .then(r => r.json())
+            .then(m => {
+              // Attach a resolved logo URL so the popup can use it directly
+              if (m && !m.logoUrl && m.logo) {
+                m.logoUrl = `${GITHUB_RAW}/extension/activities/${id}/${m.logo}`;
+              }
+              return m;
+            })
+            .catch(() => null)
+        )
+      );
+
+      ACTIVITY_META = metas.filter(Boolean);
+
+      // Cache for next open
+      await browser.storage.local.set({ _registryCache: { ts: Date.now(), metas: ACTIVITY_META } })
+        .catch(() => {});
+      return;
+    } catch {
+      clearTimeout(timer);
+    }
+  } catch {}
+
+  // Fall back to local bundle
+  try {
     const regUrl = browser.runtime.getURL('activities/registry.json');
     const reg    = await fetch(regUrl).then(r => r.json());
-    const ids    = reg.activities ?? reg; // support both array and {activities:[]} shapes
+    const ids    = reg.activities ?? reg;
 
     const metas = await Promise.all(
       ids.map(id =>
@@ -46,7 +99,13 @@ const _imageCache = {};
 function resolveActivityImage(meta) {
   if (meta.id in _imageCache) return _imageCache[meta.id];
 
-  // Explicit logo field in metadata.json
+  // Remote-loaded metadata already has a full GitHub raw URL
+  if (meta.logoUrl) {
+    _imageCache[meta.id] = meta.logoUrl;
+    return meta.logoUrl;
+  }
+
+  // Explicit logo field in metadata.json (local bundle)
   if (meta.logo) {
     const url = browser.runtime.getURL(`activities/${meta.id}/${meta.logo}`);
     _imageCache[meta.id] = url;
@@ -90,6 +149,10 @@ let disabledActivities = new Set();
 const $ = id => document.getElementById(id);
 const statusDot      = $('status-dot');
 const statusLabel    = $('status-label');
+const updateBanner   = $('update-banner');
+const updateBannerTitle = $('update-banner-title');
+const updateBannerSub   = $('update-banner-sub');
+const updateBannerBtn   = $('update-banner-btn');
 const nowPlaying     = $('now-playing');
 const npLogo         = $('np-logo');
 const npTag          = $('np-activity-tag');
@@ -100,6 +163,13 @@ const searchInput    = $('search-input');
 const settingsPanel  = $('settings-panel');
 const footer         = $('footer');
 const brandIcon      = document.querySelector('.brand-icon');
+
+// Dismiss update banner for the rest of this popup session
+let bannerDismissed = false;
+$('update-banner-dismiss').addEventListener('click', () => {
+  bannerDismissed = true;
+  updateBanner.classList.add('hidden');
+});
 
 // ---------------------------------------------------------------------------
 // Toggle persistence
@@ -138,6 +208,37 @@ function setStatus(state, errorMsg) {
   footer.classList.toggle('hidden-footer', state === 'connected');
   const errEl = $('footer-error');
   if (errEl) errEl.textContent = errorMsg ? `Error: ${errorMsg}` : '';
+}
+
+function renderUpdateBanner(updateInfo) {
+  if (bannerDismissed || !updateInfo) {
+    updateBanner.classList.add('hidden');
+    return;
+  }
+
+  const { hostUpdate, updatedActivities } = updateInfo;
+
+  if (hostUpdate?.available) {
+    updateBannerTitle.textContent = `Update Available — v${hostUpdate.latestVersion}`;
+    updateBannerSub.textContent   = 'Download the new installer to update Syncr';
+    updateBannerBtn.href          = hostUpdate.downloadUrl
+      ?? 'https://github.com/Clawb1t/Syncr/releases/latest';
+    updateBannerBtn.textContent   = 'Download';
+    updateBanner.classList.remove('hidden');
+    return;
+  }
+
+  if (updatedActivities?.length > 0) {
+    const names = updatedActivities.join(', ');
+    updateBannerTitle.textContent = `Activities Updated`;
+    updateBannerSub.textContent   = `${names} — hot-reloaded automatically`;
+    updateBannerBtn.href          = 'https://github.com/Clawb1t/Syncr/releases/latest';
+    updateBannerBtn.textContent   = 'Changelog';
+    updateBanner.classList.remove('hidden');
+    return;
+  }
+
+  updateBanner.classList.add('hidden');
 }
 
 /**
@@ -349,6 +450,7 @@ async function syncState() {
     if (!state) return;
     currentState = state;
     setStatus(state.connected ? 'connected' : 'disconnected', state.connected ? null : state.lastError);
+    renderUpdateBanner(state.updateInfo ?? null);
     renderNowPlaying(state.transmittingId, state.liveActivities);
     renderActivities(searchInput.value);
   } catch {

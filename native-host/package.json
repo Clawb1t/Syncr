@@ -4,7 +4,19 @@
   "description": "Syncr native messaging host — IPC bridge to Discord",
   "main": "host.js",
   "license": "MIT",
+  "scripts": {
+    "build": "pkg host.js --target node18-win-x64 --output ../installer/dist/syncr-host.exe --public",
+    "build:all": "pkg host.js --targets node18-win-x64,node18-mac-x64,node18-linux-x64 --output ../installer/dist/syncr-host --public"
+  },
+  "pkg": {
+    "scripts": ["activity-loader.js", "rpc-manager.js", "updater.js"],
+    "assets": [],
+    "targets": ["node18-win-x64"]
+  },
   "dependencies": {
     "discord-rpc": "^4.0.1"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
   }
 }

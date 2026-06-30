@@ -22,6 +22,19 @@ const activities = loadActivities();
 const rpc        = new RPCManager();
 
 // ---------------------------------------------------------------------------
+// Outbound native messaging (host → extension)
+// ---------------------------------------------------------------------------
+
+function writeMessage(msg) {
+  const json = JSON.stringify(msg);
+  const len  = Buffer.byteLength(json, 'utf8');
+  const buf  = Buffer.allocUnsafe(4 + len);
+  buf.writeUInt32LE(len, 0);
+  buf.write(json, 4, 'utf8');
+  process.stdout.write(buf);
+}
+
+// ---------------------------------------------------------------------------
 // Native Messaging stdio protocol (4-byte LE length prefix + UTF-8 JSON)
 // ---------------------------------------------------------------------------
 
@@ -105,3 +118,38 @@ function log(level, ...args) {
 }
 
 log('info', `Native host started — pid=${process.pid} — ${activities.size} activity(s) loaded.`);
+
+// ---------------------------------------------------------------------------
+// Background update check — runs 4 s after start so Discord has time to connect
+// ---------------------------------------------------------------------------
+
+setTimeout(async () => {
+  try {
+    const { updateActivities, checkHostUpdate } = require('./updater');
+
+    const [updatedActivities, hostUpdate] = await Promise.all([
+      updateActivities(log),
+      checkHostUpdate(log),
+    ]);
+
+    // Hot-reload any updated presence modules into the running activities map
+    if (updatedActivities.length > 0) {
+      const fresh = loadActivities();
+      for (const id of updatedActivities) {
+        if (fresh.has(id)) {
+          activities.set(id, fresh.get(id));
+          log('info', `Hot-reloaded activity: ${id}`);
+        }
+      }
+    }
+
+    // Notify the extension so the popup can surface a banner
+    writeMessage({
+      type:               'host:updateResult',
+      updatedActivities:  updatedActivities,
+      hostUpdate:         hostUpdate ?? null,
+    });
+  } catch (err) {
+    log('error', `Update check failed: ${err.message}`);
+  }
+}, 4000);

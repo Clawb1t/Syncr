@@ -33,6 +33,25 @@
     </div>
   </header>
 
+  <!-- Update banner (hidden until an update is detected) -->
+  <div class="update-banner hidden" id="update-banner">
+    <div class="update-banner-icon">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 2v6m0 0l-2.5-2.5M12 8l2.5-2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0z" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M8 16h8M10 13h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="update-banner-body">
+      <span class="update-banner-title" id="update-banner-title">Update Available</span>
+      <span class="update-banner-sub" id="update-banner-sub">A new version of Syncr is ready</span>
+    </div>
+    <a class="update-banner-btn" id="update-banner-btn" href="#" target="_blank">Download</a>
+    <button class="update-banner-dismiss" id="update-banner-dismiss" title="Dismiss">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.75.75 0 111.06 1.06L9.06 8l3.22 3.22a.75.75 0 11-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 01-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/></svg>
+    </button>
+  </div>
+
   <!-- Transmitting activity strip -->
   <div class="live-strip hidden" id="now-playing">
     <div class="live-logo" id="np-logo">🔌</div>
