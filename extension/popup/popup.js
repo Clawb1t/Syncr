@@ -423,7 +423,7 @@ $('settings-back').addEventListener('click', () => settingsPanel.classList.add('
 
 $('open-setup').addEventListener('click', e => {
   e.preventDefault();
-  browser.tabs.create({ url: 'http://127.0.0.1:47820' });
+  browser.tabs.create({ url: 'https://github.com/Clawb1t/Syncr/releases/latest' });
 });
 
 async function doReconnect(btn) {
@@ -449,7 +449,7 @@ $('footer-reconnect').addEventListener('click', e => {
 
 $('footer-setup').addEventListener('click', e => {
   e.preventDefault();
-  browser.tabs.create({ url: 'http://127.0.0.1:47820' });
+  browser.tabs.create({ url: 'https://github.com/Clawb1t/Syncr/releases/latest' });
 });
 
 // ---------------------------------------------------------------------------
