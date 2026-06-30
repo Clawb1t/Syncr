@@ -14,11 +14,15 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 14px; }
+html {
+  font-size: 14px;
+  height: 100%;
+}
 
 body {
   width: 380px;
-  min-height: 420px;
+  height: 520px;
+  max-height: 520px;
   background: var(--bg);
   color: var(--text-1);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -26,7 +30,43 @@ body {
   position: relative;
 }
 
-.popup { display: flex; flex-direction: column; min-height: 420px; }
+.popup {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 520px;
+  overflow: hidden;
+}
+
+/* Shared scroll regions (main view + overlay pages) */
+.popup-body,
+.settings-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.popup-body::-webkit-scrollbar,
+.settings-body::-webkit-scrollbar { width: 4px; }
+
+.popup-body::-webkit-scrollbar-thumb,
+.settings-body::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.12);
+  border-radius: 2px;
+}
+
+.popup-body::-webkit-scrollbar-thumb:hover,
+.settings-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,.2);
+}
+
+.popup-body {
+  display: flex;
+  flex-direction: column;
+}
 
 /* ── Header ─────────────────────────────────────── */
 
@@ -36,6 +76,7 @@ body {
   justify-content: space-between;
   padding: 10px 12px;
   background: var(--accent);
+  flex-shrink: 0;
 }
 
 .header-brand { display: flex; align-items: center; gap: 7px; }
@@ -49,7 +90,14 @@ body {
   letter-spacing: -.1px;
 }
 
-.header-actions { display: flex; align-items: center; gap: 6px; }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 72%;
+}
 
 /* Both header buttons use the same pill style */
 .hdr-pill {
@@ -98,6 +146,7 @@ body {
   background: linear-gradient(135deg, rgba(86,98,246,.18) 0%, rgba(86,98,246,.08) 100%);
   border-bottom: 1px solid rgba(86,98,246,.35);
   animation: slideDown .25s ease;
+  flex-shrink: 0;
 }
 
 @keyframes slideDown { from { transform: translateY(-6px); opacity: 0; } }
@@ -131,10 +180,11 @@ body {
 .update-banner-sub {
   font-size: 10px;
   color: var(--text-2);
-  line-height: 1.3;
-  white-space: nowrap;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .update-banner-btn {
@@ -173,6 +223,7 @@ body {
   padding: 10px 13px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .live-logo {
@@ -239,6 +290,7 @@ body {
 
 .also-live {
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .also-live-header {
@@ -330,6 +382,7 @@ body {
   gap: 8px;
   padding: 8px 13px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 .search-icon { width: 13px; height: 13px; color: var(--text-3); flex-shrink: 0; }
 .search-input {
@@ -346,11 +399,9 @@ body {
 /* ── Activities list ────────────────────────────── */
 
 .activities-list {
-  overflow-y: auto;
-  max-height: 320px;
+  flex: 1 0 auto;
+  min-height: 0;
 }
-.activities-list::-webkit-scrollbar { width: 3px; }
-.activities-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 2px; }
 
 /* ── Activity card ──────────────────────────────── */
 
@@ -507,6 +558,7 @@ body {
   color: var(--text-3);
   text-align: center;
   line-height: 1.5;
+  flex-shrink: 0;
 }
 .footer.hidden-footer { display: none; }
 .footer code { background: var(--elevated); padding: 1px 5px; border-radius: 3px; font-size: 10px; }
@@ -516,11 +568,14 @@ body {
 /* ── Settings panel ─────────────────────────────── */
 
 .settings-panel {
-  position: absolute; inset: 0;
-  min-height: 420px;
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  max-height: 520px;
   background: var(--bg);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   z-index: 100;
   animation: slideIn .15s ease;
 }
@@ -532,6 +587,7 @@ body {
   gap: 8px;
   padding: 10px 12px;
   background: var(--accent);
+  flex-shrink: 0;
 }
 
 /* Reuse hdr-pill in settings header */
@@ -556,8 +612,6 @@ body {
 .settings-title { font-size: 14px; font-weight: 700; color: #fff; }
 
 .settings-body {
-  flex: 1;
-  overflow-y: auto;
   padding: 13px;
   display: flex;
   flex-direction: column;
@@ -585,12 +639,45 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
   padding: 9px 12px;
   font-size: 13px;
   color: var(--text-2);
   border-bottom: 1px solid var(--border);
 }
+.settings-row > span:first-child { flex-shrink: 0; }
+.settings-row > .settings-value,
+.settings-row > .update-badge,
+.settings-row > .settings-link,
+.settings-row > .settings-action-btn {
+  flex-shrink: 0;
+  text-align: right;
+}
 .settings-row:last-child { border-bottom: none; }
+
+.settings-row--stacked {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.settings-row-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-row-title {
+  color: var(--text-1);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.settings-row-desc {
+  color: var(--text-3);
+  font-size: 11px;
+  margin-top: 2px;
+  line-height: 1.45;
+}
+
 .settings-value { color: var(--text-3); font-size: 12px; }
 .settings-link { color: var(--accent); font-size: 12px; font-weight: 600; text-decoration: none; }
 .settings-link:hover { text-decoration: underline; }
@@ -615,9 +702,10 @@ body {
 
 .updates-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .updates-check-btn {
@@ -638,21 +726,24 @@ body {
 .updates-last-checked {
   font-size: 10px;
   color: var(--text-3);
-  text-align: right;
+  text-align: left;
+  line-height: 1.4;
 }
 
 .updates-note {
   font-size: 11px;
   color: var(--text-3);
   line-height: 1.45;
-  margin: -2px 0 0;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .updates-about {
   padding: 9px 12px;
   font-size: 11px;
   color: var(--text-2);
-  line-height: 1.5;
+  line-height: 1.55;
+  word-break: break-word;
 }
 .updates-about code {
   background: var(--elevated);
@@ -681,10 +772,18 @@ body {
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   font-size: 12px;
+  min-height: 36px;
 }
 .updates-activity-row:last-child { border-bottom: none; }
 
-.updates-activity-name { color: var(--text-1); font-weight: 600; }
+.updates-activity-name {
+  color: var(--text-1);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .updates-empty {
   padding: 12px;

@@ -1,6 +1,6 @@
 {
     "name":  "syncr-launcher",
-    "version":  "1.0.6",
+    "version":  "1.0.7",
     "description":  "Syncr Setup — one-time installer for Syncr",
     "main":  "main.js",
     "author":  "Clawb1t",
@@ -9,6 +9,7 @@
                     "build":  "electron-builder --win"
                 },
     "devDependencies":  {
+                            "adm-zip":  "^0.5.18",
                             "electron":  "^35.0.0",
                             "electron-builder":  "^25.0.0"
                         },
@@ -22,7 +23,9 @@
                                 "main.js",
                                 "preload.js",
                                 "index.html",
-                                "renderer.js"
+                                "renderer.js",
+                                "xpi-utils.js",
+                                "node_modules/adm-zip/**"
                             ],
                   "win":  {
                               "target":  "nsis"

@@ -37,6 +37,7 @@
     </div>
   </header>
 
+  <div class="popup-body">
   <!-- Update banner (hidden until an update is detected) -->
   <div class="update-banner hidden" id="update-banner">
     <div class="update-banner-icon">
@@ -78,6 +79,7 @@
 
   <!-- Activities -->
   <div class="activities-list" id="activities-list"></div>
+  </div>
 
   <!-- Footer -->
   <footer class="footer" id="footer">
@@ -115,10 +117,10 @@
     </div>
     <div class="settings-section">
       <div class="settings-section-title">Extension</div>
-      <div class="settings-row">
-        <div>
-          <div style="color:var(--text-1);font-size:13px">Reload extension</div>
-          <div style="color:var(--text-3);font-size:11px;margin-top:2px">Restarts Syncr and reconnects to the native host</div>
+      <div class="settings-row settings-row--stacked">
+        <div class="settings-row-copy">
+          <div class="settings-row-title">Reload extension</div>
+          <div class="settings-row-desc">Restarts Syncr and reconnects to the native host</div>
         </div>
         <button class="settings-action-btn" id="btn-reload">Reload</button>
       </div>
@@ -195,7 +197,7 @@
 
     <div class="settings-section">
       <div class="settings-section-title">About Syncr Setup</div>
-      <p class="updates-about">Syncr Setup does not bundle the host or extension. Each time you run it, it downloads the latest <code>syncr-host.exe</code>, activities, and <code>syncr.xpi</code> from GitHub Releases. The installer filename includes its own build version (e.g. <code>Syncr-Setup-1.0.5.exe</code>).</p>
+      <p class="updates-about">Syncr Setup does not bundle the host or extension. Each run re-downloads the signed <code>syncr.xpi</code>, activities, and (when needed) <code>syncr-host.exe</code> from GitHub — cached files in <code>%LOCALAPPDATA%\Syncr</code> are never reused. The installer filename includes its build version (e.g. <code>Syncr-Setup-1.0.6.exe</code>).</p>
     </div>
   </div>
 </div>
