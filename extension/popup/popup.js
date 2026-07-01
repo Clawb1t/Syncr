@@ -676,6 +676,9 @@ async function installHostActivity(activityId, btn) {
     if (updatesPanelOpen) {
       renderUpdatesPanel(lastRemoteUpdateInfo, currentState.updateInfo);
     }
+
+    await browser.runtime.sendMessage({ type: 'activity:reflush' }).catch(() => {});
+    await syncState();
   } catch (err) {
     if (btn) btn.textContent = 'Failed';
     setTimeout(() => { if (btn) btn.textContent = orig; }, 2500);
@@ -688,8 +691,8 @@ async function installHostActivity(activityId, btn) {
 
 /**
  * Extract a human-readable title + optional subtitle from raw activity data.
- * Both content scripts send `data.title` as the primary field.
- * YouTube Music adds `data.artist`; YouTube adds `data.channelName`.
+ * Prefer explicit fields (context, details, title); fall back to common emit keys
+ * so new activities show in the popup without editing this file.
  */
 function getActivityTitle(data) {
   if (!data) return null;
@@ -699,21 +702,43 @@ function getActivityTitle(data) {
       : null;
     return { title: ctx ? `Browsing ${ctx}` : 'Browsing…', sub: null };
   }
+  if (data.mode === 'searching' && (data.state || data.searchQuery)) {
+    const q = data.state || data.searchQuery;
+    return { title: data.details || 'Searching', sub: q };
+  }
   if (data.mode === 'search' && data.searchQuery) {
     return { title: `Searching: ${data.searchQuery}`, sub: null };
   }
-  if (data.context) return { title: data.context, sub: null };
-  if (!data.title) return null;
-  const sub = data.artist      ? `by ${data.artist}`
-            : data.channelName ? `by ${data.channelName}`
-            : data.author      ? `${data.subreddit || 'Reddit'} · u/${String(data.author).replace(/^u\//, '')}`
-            : data.mediaType === 'show' && (data.seasonNumber != null || data.episodeNumber != null)
-              ? `S${data.seasonNumber ?? '?'} · E${data.episodeNumber ?? '?'}${data.episodeTitle ? `: ${data.episodeTitle}` : ''}`
-            : null;
-  return { title: data.title, sub };
+  if (data.context) {
+    const sub = data.mode === 'drafting' ? 'Composing'
+              : data.mode === 'viewing'  ? 'Reading'
+              : data.mode === 'browsing' ? 'In mailbox'
+              : null;
+    return { title: data.context, sub };
+  }
+  if (data.details) {
+    return { title: data.details, sub: data.state || null };
+  }
+  if (data.title) {
+    const sub = data.artist      ? `by ${data.artist}`
+              : data.channelName ? `by ${data.channelName}`
+              : data.author      ? `${data.subreddit || 'Reddit'} · u/${String(data.author).replace(/^u\//, '')}`
+              : data.mediaType === 'show' && (data.seasonNumber != null || data.episodeNumber != null)
+                ? `S${data.seasonNumber ?? '?'} · E${data.episodeNumber ?? '?'}${data.episodeTitle ? `: ${data.episodeTitle}` : ''}`
+              : data.state || data.repoFull || null;
+    return { title: data.title, sub };
+  }
+  // Generic fallback — keeps new activities visible in the popup without popup.js changes
+  if (data.name) return { title: data.name, sub: data.state || data.repoFull || null };
+  if (data.repoFull) return { title: data.repoFull, sub: data.state || null };
+  if (typeof data.mode === 'string' && data.mode) {
+    const label = data.mode.replace(/_/g, ' ');
+    return { title: label.charAt(0).toUpperCase() + label.slice(1), sub: data.state || null };
+  }
+  return { title: 'Active', sub: null };
 }
 
-function renderNowPlaying(transmittingId, liveActivitiesObj) {
+function renderNowPlaying(transmittingId, liveActivitiesObj, hostMissingIds = []) {
   // ── Transmitting strip ────────────────────────────────────────────
   const isTransmitting = !!(transmittingId && !disabledActivities.has(transmittingId));
   brandIcon.classList.toggle('is-transmitting', isTransmitting);
@@ -738,7 +763,11 @@ function renderNowPlaying(transmittingId, liveActivitiesObj) {
       npLogo.textContent = meta?.icon || '🔌';
     }
 
-    if (info?.title) {
+    if (hostMissingIds.includes(transmittingId)) {
+      const base = info?.title ? (info.sub ? `${info.title} — ${info.sub}` : info.title) : 'Live';
+      npTitle.textContent = `${base} · Install activity for Discord`;
+      npTitle.classList.remove('hidden');
+    } else if (info?.title) {
       npTitle.textContent = info.sub ? `${info.title} - ${info.sub}` : info.title;
       npTitle.classList.remove('hidden');
     } else {
@@ -998,7 +1027,7 @@ async function syncState() {
     if (updatesPanelOpen) {
       renderUpdatesPanel(lastRemoteUpdateInfo, state.updateInfo ?? null);
     }
-    renderNowPlaying(state.transmittingId, state.liveActivities);
+    renderNowPlaying(state.transmittingId, state.liveActivities, state.hostMissingActivities ?? []);
     renderActivities(searchInput.value);
   } catch {
     setStatus('disconnected');

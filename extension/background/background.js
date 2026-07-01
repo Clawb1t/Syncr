@@ -10,6 +10,7 @@ let reconnectTimer     = null;
 let disabledActivities = new Set();
 let remoteActivityIndex = [];
 let remoteIndexLoadedAt = 0;
+const hostMissingActivities = new Set();
 
 // ---------------------------------------------------------------------------
 // Remote activity index (GitHub registry + metadata, PreMiD-style resolution)
@@ -196,6 +197,7 @@ function buildPopupState() {
     transmittingId,
     preferredId:    preferredActivityId,
     liveActivities: live,
+    hostMissingActivities: [...hostMissingActivities],
     // Legacy aliases so old popup code paths still work during transition
     activeActivityId: transmittingId,
     activeData:       transmittingId ? liveActivities.get(transmittingId)?.data ?? null : null,
@@ -223,6 +225,11 @@ function connect() {
 
   port.onMessage.addListener(msg => {
     if (!msg?.type) return;
+    if (msg.type === 'host:activityMissing') {
+      hostMissingActivities.add(msg.activityId);
+      connState.lastError = `Host is missing "${msg.activityId}" — click Install activity on that card in the popup.`;
+      return;
+    }
     if (msg.type === 'host:updateResult') {
       if (msg.ok === false) {
         if (pendingUpdateCheck) {
@@ -230,6 +237,10 @@ function connect() {
           pendingUpdateCheck = null;
         }
         return;
+      }
+      connState.lastError = null;
+      for (const a of msg.activityStatus ?? []) {
+        if (a.installed) hostMissingActivities.delete(a.id);
       }
       connState.updateInfo = {
         updatedActivities: msg.updatedActivities ?? [],
@@ -462,6 +473,14 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       flushTransmitting();
     }
     sendResponse({ ok: true });
+    return true;
+  }
+
+  if (msg.type === 'activity:reflush') {
+    connState.lastError = null;
+    transmittingId = pickTransmitting();
+    if (transmittingId) flushTransmitting();
+    sendResponse({ ok: true, transmittingId });
     return true;
   }
 });

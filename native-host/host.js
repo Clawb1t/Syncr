@@ -141,7 +141,11 @@ async function handleMessage({ type, activityId, data }) {
 
     case 'activity:update': {
       const activity = activities.get(activityId);
-      if (!activity) { log('warn', `Unknown activityId: ${activityId}`); return; }
+      if (!activity) {
+        log('warn', `Unknown activityId: ${activityId}`);
+        writeMessage({ type: 'host:activityMissing', activityId });
+        return;
+      }
 
       let presence;
       try   { presence = activity.formatPresence(data); }
