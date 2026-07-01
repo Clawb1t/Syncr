@@ -1,0 +1,14 @@
+{
+  "minExtensionVersion": "1.0.12",
+  "id":           "netflix",
+  "name":         "Netflix",
+  "description":  "Tracks browsing, search, and playback on netflix.com",
+  "category":     "Streaming",
+  "icon":         "🎬",
+  "logo":         "logo.png",
+  "version":      "1.0.0",
+  "author":       "Syncr Contributors",
+  "urlPattern":   "*://www.netflix.com/*",
+  "buttonLabel":  "Watch on Netflix",
+  "activityType": "WATCHING"
+}

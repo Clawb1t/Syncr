@@ -590,11 +590,16 @@ function getActivityTitle(data) {
       : null;
     return { title: ctx ? `Browsing ${ctx}` : 'Browsing…', sub: null };
   }
+  if (data.mode === 'search' && data.searchQuery) {
+    return { title: `Searching: ${data.searchQuery}`, sub: null };
+  }
   if (data.context) return { title: data.context, sub: null };
   if (!data.title) return null;
   const sub = data.artist      ? `by ${data.artist}`
             : data.channelName ? `by ${data.channelName}`
             : data.author      ? `${data.subreddit || 'Reddit'} · u/${String(data.author).replace(/^u\//, '')}`
+            : data.mediaType === 'show' && (data.seasonNumber != null || data.episodeNumber != null)
+              ? `S${data.seasonNumber ?? '?'} · E${data.episodeNumber ?? '?'}${data.episodeTitle ? `: ${data.episodeTitle}` : ''}`
             : null;
   return { title: data.title, sub };
 }

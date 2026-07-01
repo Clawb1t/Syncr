@@ -2,7 +2,7 @@
 
 **Discord Rich Presence for Firefox.** Syncr shows what you're doing on the web, right on your Discord profile.
 
-Browse YouTube, listen on YouTube Music, scroll Reddit, check your mail, and your friends see it in Discord, the same way a desktop app would. No Discord login required. No cloud servers. Everything stays on your PC.
+Browse YouTube, listen on YouTube Music, scroll Reddit, check your mail, watch Netflix, and your friends see it in Discord, the same way a desktop app would. No Discord login required. No cloud servers. Everything stays on your PC.
 
 ---
 
@@ -22,6 +22,7 @@ Open the Syncr popup to see what's currently being transmitted, search through a
 | **YouTube** | Watching status with video title and channel |
 | **Reddit** | Post titles, subreddits, scores, and browsing context, or a general browsing status on feeds and profiles |
 | **Proton Mail** | A generic "checking mail" status with no subjects, senders, or personal content |
+| **Netflix** | Browsing and search status, title pages, and playback with season, episode, artwork, and a progress bar |
 
 New activities are added over time. The popup picks them up automatically from GitHub. Host-side presence files hot-update without a full reinstall; new content scripts require an extension update.
 
@@ -300,6 +301,7 @@ Syncr is open source. Issues, activity ideas, and pull requests are welcome on [
 | [`docs/architecture.md`](docs/architecture.md) | How the extension, native host, and Discord IPC work together |
 | [`docs/activities.md`](docs/activities.md) | Creating activities, review checklist, release process for maintainers |
 | [`docs/host-changelog.md`](docs/host-changelog.md) | What each native host version includes |
+| [`docs/extension-changelog.md`](docs/extension-changelog.md) | What each extension version includes |
 | [`native-host/ACTIVITY_SDK.md`](native-host/ACTIVITY_SDK.md) | Presence builder API reference |
 
 The README also has a shorter [contributing overview](#contributing) and [Reddit case study](#case-study-the-reddit-activity).

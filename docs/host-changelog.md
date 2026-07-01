@@ -2,7 +2,7 @@
 
 The native host is `syncr-host.exe`. Its version is stored in `native-host/version.json` in the repo and copied to `%LOCALAPPDATA%\Syncr\version.json` on install.
 
-**Host version and extension version are separate.** Extension releases use tags like `v1.0.11`. Host releases use `native-host/version.json` (currently `1.0.7`). Users see both in the popup Updates panel.
+**Host version and extension version are separate.** Extension releases use tags like `v1.0.12`. Host releases use `native-host/version.json` (currently `1.0.8`). Users see both in the popup Updates panel.
 
 ---
 
@@ -22,7 +22,31 @@ The native host is `syncr-host.exe`. Its version is stored in `native-host/versi
 
 ## Version history
 
-### 1.0.7 (current)
+### 1.0.8 (current)
+
+**Shipped with:** extension v1.0.12
+
+**Activities in repo:**
+
+- YouTube Music
+- YouTube
+- Reddit
+- Proton Mail
+- Netflix
+
+**Activities added:**
+
+- Netflix (`native-host/activities/netflix/presence.js`)
+
+**Notes:**
+
+- Netflix presence: Watching type, browsing, search, title preview, playback with season/episode, progress bar, and RPC buttons.
+- Paired with extension content script for `www.netflix.com`.
+- Discord application ID: `1521836333528776704`.
+
+---
+
+### 1.0.7
 
 **Shipped with:** extension v1.0.11
 
@@ -146,6 +170,7 @@ The native host is `syncr-host.exe`. Its version is stored in `native-host/versi
 | YouTube | (bundled early) | `youtube/presence.js` | 1.0.0 |
 | Reddit | 1.0.9 | `reddit/presence.js` | 1.0.6 |
 | Proton Mail | 1.0.11 | `proton-mail/presence.js` | 1.0.7 |
+| Netflix | 1.0.12 | `netflix/presence.js` | 1.0.8 |
 
 ---
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Syncr",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Display what you're doing in Firefox as Discord Rich Presence.",
   "author": "Syncr Contributors",
 
@@ -47,6 +47,11 @@
     {
       "matches": ["*://mail.proton.me/*", "*://mail.protonmail.com/*"],
       "js": ["activities/proton-mail/content-script.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://www.netflix.com/*"],
+      "js": ["activities/netflix/content-script.js"],
       "run_at": "document_idle"
     }
   ],
