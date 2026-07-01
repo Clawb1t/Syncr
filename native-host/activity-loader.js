@@ -1,14 +1,8 @@
 const fs   = require('fs');
 const path = require('path');
+const { ACTIVITIES_DIR } = require('./paths');
 
-// When bundled with `pkg` into syncr-host.exe, __dirname resolves to the
-// virtual snapshot — use process.execPath so activities are always loaded
-// from the real filesystem next to the exe, where the updater can write them.
-const BASE_DIR       = process.pkg ? path.dirname(process.execPath) : __dirname;
-const ACTIVITIES_DIR = path.join(BASE_DIR, 'activities');
-
-/**
- * Scans native-host/activities/ for activity folders.
+/** * Scans native-host/activities/ for activity folders.
  * Each folder must contain a presence.js exporting:
  *   { id, name, clientId, urlPattern, formatPresence }
  *
@@ -26,6 +20,7 @@ function loadActivities() {
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
+    if (entry.name.startsWith('_')) continue;
 
     const presencePath = path.join(ACTIVITIES_DIR, entry.name, 'presence.js');
 

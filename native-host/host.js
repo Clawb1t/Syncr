@@ -14,6 +14,7 @@ const path = require('path');
 const { loadActivities } = require('./activity-loader');
 const { RPCManager }     = require('./rpc-manager');
 const { LOG_FILE }       = require('./paths');
+const syncr              = require('./sdk');
 
 // File log — next to syncr-host.exe (not inside pkg snapshot)
 let logStream;
@@ -101,7 +102,7 @@ async function handleMessage({ type, activityId, data }) {
       if (!activity) { log('warn', `Unknown activityId: ${activityId}`); return; }
 
       let presence;
-      try   { presence = activity.formatPresence(data); }
+      try   { presence = activity.formatPresence(data, syncr); }
       catch (err) { log('error', `${activityId}.formatPresence(): ${err.message}`); return; }
 
       await rpc.setActivity(activity.clientId, presence);

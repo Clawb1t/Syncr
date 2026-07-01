@@ -3,12 +3,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('syncr', {
-  close:    ()         => ipcRenderer.invoke('window:close'),
-  minimize: ()         => ipcRenderer.invoke('window:minimize'),
-  check:    ()         => ipcRenderer.invoke('syncr:check'),
-  install:  (payload)  => ipcRenderer.invoke('syncr:install', payload),
-  update:   (payload)  => ipcRenderer.invoke('syncr:update',  payload),
+  close:     () => ipcRenderer.invoke('window:close'),
+  minimize:  () => ipcRenderer.invoke('window:minimize'),
+  autoSetup: () => ipcRenderer.invoke('syncr:autoSetup'),
 
-  onLog:      (fn) => ipcRenderer.on('log',      (_e, msg)  => fn(msg)),
-  onProgress: (fn) => ipcRenderer.on('progress', (_e, pct)  => fn(pct)),
+  onLog:      (fn) => ipcRenderer.on('log',      (_e, msg) => fn(msg)),
+  onProgress: (fn) => ipcRenderer.on('progress', (_e, pct) => fn(pct)),
+  onStep:     (fn) => ipcRenderer.on('step',     (_e, msg) => fn(msg)),
+  onPhase:    (fn) => ipcRenderer.on('phase',    (_e, p)   => fn(p)),
 });

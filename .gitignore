@@ -1,8 +1,10 @@
 # Secrets — never commit this
 extension/secrets.js
+.env
 
 # Dependencies
 node_modules/
 
 # Build output
 dist/
+launcher/dist/

@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Read version
+        id: meta
+        shell: pwsh
+        run: |
+          $v = (Get-Content extension/manifest.json -Raw | ConvertFrom-Json).version
+          if ("${{ github.ref_name }}" -ne "v$v") {
+            Write-Error "Tag ${{ github.ref_name }} does not match manifest version v$v"
+            exit 1
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "tag=${{ github.ref_name }}" >> $env:GITHUB_OUTPUT
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Sign extension (AMO)
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        shell: pwsh
+        run: |
+          if (-not $env:WEB_EXT_API_KEY -or -not $env:WEB_EXT_API_SECRET) {
+            Write-Error "Add AMO_JWT_ISSUER and AMO_JWT_SECRET repository secrets."
+            exit 1
+          }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          npx web-ext sign `
+            --source-dir extension `
+            --artifacts-dir dist `
+            --api-key $env:WEB_EXT_API_KEY `
+            --api-secret $env:WEB_EXT_API_SECRET `
+            --channel unlisted `
+            --approval-timeout 30
+
+          $xpi = Get-ChildItem dist -Filter *.xpi -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $xpi) {
+            Write-Host "web-ext did not produce XPI — waiting for AMO review…"
+            $v = (Get-Content extension/manifest.json -Raw | ConvertFrom-Json).version
+            $env:AMO_JWT_ISSUER = $env:WEB_EXT_API_KEY
+            $env:AMO_JWT_SECRET = $env:WEB_EXT_API_SECRET
+            node scripts/fetch-signed-xpi.js $v --wait --wait-minutes 25
+          }
+
+      - name: Verify signed XPI
+        run: node scripts/verify-xpi.js dist/syncr.xpi
+
+      - name: Stage signed XPI
+        shell: pwsh
+        run: |
+          $xpi = Get-ChildItem dist -Filter *.xpi | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $xpi) { throw "No signed .xpi produced" }
+          Copy-Item $xpi.FullName dist/syncr.xpi -Force
+          Copy-Item dist/syncr.xpi $env:RUNNER_TEMP/syncr.xpi -Force
+          Write-Host "Signed XPI: dist/syncr.xpi"
+
+      - name: Build native host
+        run: |
+          cd native-host
+          npm ci
+          npm run build
+
+      - name: Build Syncr Setup
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        shell: pwsh
+        run: |
+          $v = (Get-Content extension/manifest.json -Raw | ConvertFrom-Json).version
+          $pkgPath = Join-Path launcher package.json
+          $pkg = Get-Content $pkgPath -Raw | ConvertFrom-Json
+          $pkg.version = $v
+          ($pkg | ConvertTo-Json -Depth 10) + "`n" | Set-Content $pkgPath
+          Push-Location launcher
+          npm ci
+          npm run build
+          Pop-Location
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Syncr v${{ steps.meta.outputs.version }}
+          generate_release_notes: true
+          files: |
+            dist/syncr.xpi
+            dist/syncr-host.exe
+            launcher/dist/Syncr-Setup-*.exe
+
+      - name: Commit updates.json to main
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+          node scripts/update-updates-json.js ${{ steps.meta.outputs.version }} $env:RUNNER_TEMP/syncr.xpi
+          git add updates.json
+          git diff --staged --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "chore: updates.json for v${{ steps.meta.outputs.version }}"
+            git push origin main
+          }

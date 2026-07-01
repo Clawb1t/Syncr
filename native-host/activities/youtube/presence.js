@@ -11,57 +11,34 @@ module.exports = {
   clientId:   '1521557457699078214',
   urlPattern: '*://www.youtube.com/watch*',
 
-  formatPresence({ browsing, title, channelName, channelUrl, thumbnailUrl, currentTime, duration, paused, pageUrl }) {
-    // Browsing — not watching a video
+  formatPresence({ browsing, title, channelName, channelUrl, thumbnailUrl, currentTime, duration, paused, pageUrl }, syncr) {
     if (browsing) {
-      return {
-        type:     3,
-        name:     'YouTube',
-        details:  'Browsing...',
-        assets:   { large_image: 'youtube_logo', large_text: 'YouTube' },
-        instance: false,
-      };
+      return syncr.browsing({
+        type:    syncr.ActivityType.Watching,
+        name:    'YouTube',
+        logo:    'youtube_logo',
+        details: 'Browsing...',
+      });
     }
 
     const videoTitle = title       || 'Unknown Video';
     const channel    = channelName || 'YouTube';
 
-    const presence = {
-      // type 3 = Watching — shows "Watching YouTube" in Discord
-      type:    3,
-      name:    videoTitle,   // compact status: "Watching [video title]"
-      details: channel,      // first line: channel name
-      state:   paused ? '⏸ Paused' : 'Watching',
+    const builder = syncr.presence()
+      .watching(videoTitle)
+      .details(channel)
+      .state(paused ? '⏸ Paused' : 'Watching')
+      .largeImage(thumbnailUrl || 'youtube_logo', videoTitle)
+      .smallStatus(paused ? 'paused' : 'playing', paused ? 'Paused' : 'Watching')
+      .progressBar(currentTime, duration, { paused });
 
-      assets: {
-        large_image: thumbnailUrl || 'youtube_logo',
-        large_text:  videoTitle,
-        small_image: paused ? 'paused' : 'playing',
-        small_text:  paused ? 'Paused' : 'Watching',
-      },
-
-      instance: false,
-    };
-
-    // Progress bar — omit when paused so Discord bar doesn't keep ticking
-    if (!paused && duration > 0) {
-      const nowSec = Math.floor(Date.now() / 1000);
-      presence.timestamps = {
-        start: nowSec - Math.floor(currentTime),
-        end:   nowSec - Math.floor(currentTime) + Math.floor(duration),
-      };
-    }
-
-    // Two buttons: video + channel
-    const buttons = [];
     if (pageUrl?.startsWith('https://')) {
-      buttons.push({ label: 'Watch Video', url: pageUrl });
+      builder.button('Watch Video', pageUrl);
     }
     if (channelUrl?.startsWith('https://')) {
-      buttons.push({ label: 'View Channel', url: channelUrl });
+      builder.button('View Channel', channelUrl);
     }
-    if (buttons.length) presence.buttons = buttons.slice(0, 2);
 
-    return presence;
+    return builder.build();
   },
 };

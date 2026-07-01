@@ -1,4 +1,5 @@
-# Build unsigned Firefox extension zip for AMO signing
+# Build unsigned Firefox extension zip for AMO signing (manual fallback).
+# For automated signing, use: npm run release
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -37,4 +38,4 @@ Write-Host 'Done!' -ForegroundColor Green
 Write-Host "  Output: dist\$outName"
 Write-Host "  SHA-256: $hash"
 Write-Host ''
-Write-Host 'Upload this zip to AMO for signing, then attach the signed .xpi to your GitHub release.'
+Write-Host 'Tip: use npm run release for fully automated sign + publish.'

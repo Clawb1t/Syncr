@@ -1,8 +1,8 @@
 const DiscordRPC = require('discord-rpc');
 const fs         = require('fs');
-const path       = require('path');
+const { LOG_FILE } = require('./paths');
+const { validatePresence, primaryImageUrl } = require('./sdk');
 
-const LOG_FILE = path.join(__dirname, 'host.log');
 function log(msg) {
   const line = `[${new Date().toISOString()}][rpc] ${msg}\n`;
   try { fs.appendFileSync(LOG_FILE, line); } catch {}
@@ -23,7 +23,7 @@ class RPCManager {
   constructor() {
     this._clients    = new Map(); // clientId → { client, ready }
     this._activeId   = null;
-    this._lastImage  = new Map(); // clientId → last large_image URL sent
+    this._lastImage  = new Map(); // clientId → last primary image URL sent
   }
 
   async _getClient(clientId) {
@@ -56,36 +56,10 @@ class RPCManager {
 
   /**
    * Build the raw Discord activity object from a formatPresence() result.
-   * Supports the full activity shape including type, timestamps, assets, buttons.
+   * Validates and passes through the full SET_ACTIVITY display shape.
    */
   _buildActivity(presence) {
-    const activity = {
-      // type: 2 = Listening, 0 = Playing (default). Passed straight through
-      // because the "listening to" label in Discord depends on this field.
-      type:     presence.type     ?? 0,
-      // name: shown in the compact status bar as "Listening to [name]"
-      name:     presence.name     ?? undefined,
-      details:  presence.details  ?? undefined,
-      state:    presence.state    ?? undefined,
-      instance: !!presence.instance,
-    };
-
-    // Progress bar — pass as nested object so Discord renders it correctly
-    if (presence.timestamps) {
-      activity.timestamps = presence.timestamps;
-    }
-
-    // Images
-    if (presence.assets) {
-      activity.assets = presence.assets;
-    }
-
-    // Buttons (max 2)
-    if (Array.isArray(presence.buttons) && presence.buttons.length) {
-      activity.buttons = presence.buttons.slice(0, 2);
-    }
-
-    return activity;
+    return validatePresence(presence);
   }
 
   async setActivity(clientId, presence) {
@@ -97,11 +71,11 @@ class RPCManager {
     try {
       const client   = await this._getClient(clientId);
       const activity = this._buildActivity(presence);
-      const newImage = activity.assets?.large_image ?? null;
+      const newImage = primaryImageUrl(activity);
       const oldImage = this._lastImage.get(clientId) ?? null;
 
-      // When large_image changes Discord may serve a stale proxy-cached image
-      // for the new activity. A clear → short wait → set forces a fresh load.
+      // When the primary image changes Discord may serve a stale proxy-cached image.
+      // A clear → short wait → set forces a fresh load.
       if (oldImage && newImage && oldImage !== newImage) {
         log(`Image changed (${oldImage} → ${newImage}), clearing before reset`);
         await client.request('SET_ACTIVITY', { pid: process.pid, activity: null });
@@ -109,7 +83,6 @@ class RPCManager {
       }
       this._lastImage.set(clientId, newImage);
 
-      // Use request() directly — setActivity() strips `type` and other fields
       log(`SET_ACTIVITY → ${JSON.stringify(activity)}`);
       await client.request('SET_ACTIVITY', {
         pid: process.pid,
