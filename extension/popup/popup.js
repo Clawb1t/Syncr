@@ -147,7 +147,11 @@ function enrichActivityMeta(meta, bundledIds, hostStatus, remoteExtVersion) {
     lockReason = `Requires engine v${need}`;
     lockAction = 'extension';
   } else if (hostKnown && !hostReady) {
-    lockReason = host?.installed ? 'Host activity update available' : 'Run Check for updates in Updates';
+    if (host?.installed) {
+      lockReason = 'Presence file update available';
+    } else {
+      lockReason = 'Not installed on host yet — one-time download';
+    }
     lockAction = 'host';
   }
 
@@ -156,6 +160,7 @@ function enrichActivityMeta(meta, bundledIds, hostStatus, remoteExtVersion) {
     _ready:           extOk && (!hostKnown || hostReady),
     _extensionReady:  extOk,
     _hostReady:       hostReady,
+    _hostInstalled:   !!host?.installed,
     _hostKnown:       hostKnown,
     _isRemote:        isRemote,
     _lockReason:      lockReason,
@@ -802,7 +807,7 @@ function buildCard(meta) {
     : `<span style="font-size:20px;line-height:1">${esc(meta.icon || '🔌')}</span>`;
 
   let tagText = isActive ? 'Live' : esc(meta.category || '');
-  if (isLocked) tagText = 'Update needed';
+  if (isLocked) tagText = meta._hostInstalled === false ? 'Setup needed' : 'Update needed';
 
   let updateHint = '';
   if (isLocked && meta._lockReason) {
@@ -810,7 +815,8 @@ function buildCard(meta) {
       const xpiUrl = lastRemoteUpdateInfo?.downloads?.xpi || RELEASES_URL;
       updateHint = `<div class="ac-update-hint">${esc(meta._lockReason)} · <a class="ac-update-link" data-update-ext href="${esc(xpiUrl)}" target="_blank" rel="noopener">Get extension update</a></div>`;
     } else if (meta._lockAction === 'host') {
-      updateHint = `<div class="ac-update-hint">${esc(meta._lockReason)} · <button type="button" class="ac-update-link" data-update-host="${esc(meta.id)}">Update host activity</button></div>`;
+      const hostBtn = meta._hostInstalled === false ? 'Install activity' : 'Update activity';
+      updateHint = `<div class="ac-update-hint">${esc(meta._lockReason)} · <button type="button" class="ac-update-link" data-update-host="${esc(meta.id)}">${hostBtn}</button></div>`;
     } else {
       updateHint = `<div class="ac-update-hint">${esc(meta._lockReason)}</div>`;
     }
