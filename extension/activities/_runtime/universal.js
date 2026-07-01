@@ -23,6 +23,7 @@
         if (result?.id) {
           if (window.__SYNCR_REMOTE__) return;
           window.__SYNCR_REMOTE__ = result.id;
+          window.__SYNCR_RESOLVED_ORIGIN__ = location.origin;
           runRemoteActivity(result.id, result);
           return;
         }
@@ -39,6 +40,10 @@
   }
 
   function onNavigate() {
+    if (window.__SYNCR_REMOTE__ && window.__SYNCR_RESOLVED_ORIGIN__ !== location.origin) {
+      window.__SYNCR_REMOTE__ = null;
+      window.__SYNCR_RESOLVED_ORIGIN__ = null;
+    }
     if (window.__SYNCR_REMOTE__) return;
     tryResolve(0);
   }
@@ -53,11 +58,14 @@
   tryResolve(0);
 
   function runRemoteActivity(ACTIVITY_ID, resolveInfo) {
+    const Engine = window.SyncrEngine;
+    if (!Engine) return;
+
     const fetchOrigins = resolveInfo?.fetchOrigins || [];
     let scraperDef     = null;
     let scrapeBusy     = false;
     let lastUrl        = location.href;
-    const changeState  = SyncrEngine.SyncrEngineChangeDetection.createState();
+    const changeState  = Engine.SyncrEngineChangeDetection.createState();
     let pollMs         = 2000;
 
     async function loadScraper() {
@@ -100,9 +108,9 @@
       try {
         if (location.href !== lastUrl) {
           lastUrl = location.href;
-          SyncrEngine.SyncrEngineChangeDetection.reset(changeState);
+          Engine.SyncrEngineChangeDetection.reset(changeState);
           scraperDef = null;
-          SyncrEngine.SyncrEngineFetch.clearCache(ACTIVITY_ID);
+          Engine.SyncrEngineFetch.clearCache(ACTIVITY_ID);
         }
 
         const enabled = await browser.runtime.sendMessage({
@@ -111,7 +119,7 @@
 
         if (!enabled?.enabled) {
           if (changeState.lastSent !== null) {
-            SyncrEngine.SyncrEngineChangeDetection.reset(changeState);
+            Engine.SyncrEngineChangeDetection.reset(changeState);
             browser.runtime.sendMessage({ type: 'activity:clear', activityId: ACTIVITY_ID }).catch(() => {});
           }
           return;
@@ -122,27 +130,27 @@
 
         pollMs = Math.max(1000, def.pollMs || 2000);
 
-        const data = await SyncrEngine.evaluate(def, document, location, {
+        const data = await Engine.evaluate(def, document, location, {
           fetchOrigins,
           activityId: ACTIVITY_ID,
         });
 
         if (!data) {
           if (changeState.lastSent !== null) {
-            SyncrEngine.SyncrEngineChangeDetection.reset(changeState);
+            Engine.SyncrEngineChangeDetection.reset(changeState);
             browser.runtime.sendMessage({ type: 'activity:clear', activityId: ACTIVITY_ID }).catch(() => {});
           }
           return;
         }
 
         const cd = def.changeDetection;
-        if (cd && !SyncrEngine.SyncrEngineChangeDetection.shouldSend(data, changeState, cd)) {
+        if (cd && !Engine.SyncrEngineChangeDetection.shouldSend(data, changeState, cd)) {
           return;
         }
 
         if (!cd && !dataChanged(changeState.lastSent, data)) return;
 
-        SyncrEngine.SyncrEngineChangeDetection.trackSent(data, changeState, cd);
+        Engine.SyncrEngineChangeDetection.trackSent(data, changeState, cd);
         browser.runtime.sendMessage({
           type:       'activity:update',
           activityId: ACTIVITY_ID,
@@ -163,7 +171,7 @@
         if (extraEvents.includes(ev)) continue;
         extraEvents.push(ev);
         window.addEventListener(ev, () => {
-          SyncrEngine.SyncrEngineChangeDetection.reset(changeState);
+          Engine.SyncrEngineChangeDetection.reset(changeState);
           scraperDef = null;
           poll();
         });
@@ -171,13 +179,13 @@
     }).catch(() => {});
 
     window.addEventListener('popstate', () => {
-      SyncrEngine.SyncrEngineChangeDetection.reset(changeState);
+      Engine.SyncrEngineChangeDetection.reset(changeState);
       scraperDef = null;
       poll();
     });
 
     window.addEventListener('hashchange', () => {
-      SyncrEngine.SyncrEngineChangeDetection.reset(changeState);
+      Engine.SyncrEngineChangeDetection.reset(changeState);
       poll();
     });
 

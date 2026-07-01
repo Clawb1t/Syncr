@@ -8,7 +8,18 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Version history
 
-### 1.0.21 (current)
+### 1.0.22 (current)
+
+**Proton Mail fix + engine version in Settings**
+
+- Migrated Proton Mail `scraper.json` to engine **v2** (was still on v1 compat path after the v2 rollout).
+- Universal host now uses `window.SyncrEngine` consistently and re-resolves when the tab origin changes.
+- v1 compat shim handles `default.emit` wrappers (fixes broken payloads if a remote scraper mixed v1/v2 shape).
+- Settings → About shows **Scraper engine** version (separate from extension version).
+
+---
+
+### 1.0.21
 
 **Hotfix: manifest warning**
 
@@ -25,7 +36,7 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 - **Migrated to remote `scraper.json`:** YouTube, YouTube Music, Reddit, Netflix (no bundled `content-script.js`).
 - **Single universal content script** on all http(s) pages; per-site manifest entries removed.
 - Popup gates activities on `minEngineVersion` vs `extension/engine-version.json` (not bundled scraper presence).
-- Proton Mail keeps v1 `scraper.json` via compatibility shim.
+- Proton Mail uses v2 `scraper.json` (migrated in 1.0.22).
 - Added `npm run validate:scrapers` and `npm run test:engine`.
 
 **After updating:** reload the extension. New activities only need GitHub files (`registry.json`, `metadata.json`, `scraper.json`, `presence.js`).

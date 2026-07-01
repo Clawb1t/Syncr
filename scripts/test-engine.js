@@ -51,7 +51,7 @@ async function main() {
   };
 
   const protonResult = await SyncrEngine.evaluate(protonDef, protonDoc, protonLoc, {});
-  assert(protonResult?.mode === 'browsing', 'proton v1 default browsing');
+  assert(protonResult?.mode === 'browsing', 'proton v2 inbox browsing');
 
   const ytDef = JSON.parse(fs.readFileSync(
     path.join(__dirname, '..', 'extension', 'activities', 'youtube', 'scraper.json'), 'utf8',

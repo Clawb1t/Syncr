@@ -578,6 +578,7 @@ function openUpdatesPanel() {
   updatesPanelOpen = true;
   syncPageScrollLock();
   $('s-ext-version').textContent = EXT_VERSION;
+  $('s-engine-version').textContent = ENGINE_VERSION;
   renderUpdatesPanel(lastRemoteUpdateInfo, currentState.updateInfo ?? null);
   if (!lastRemoteUpdateInfo) runUpdateCheck(false);
 }
@@ -847,6 +848,7 @@ $('btn-settings').addEventListener('click', () => {
   settingsPanel.scrollTop = 0;
   syncPageScrollLock();
   $('s-ext-version').textContent = EXT_VERSION;
+  $('s-engine-version').textContent = ENGINE_VERSION;
   $('s-host-status').textContent = currentState.connected ? 'Connected' : 'Not connected';
 });
 
@@ -939,6 +941,7 @@ setStatus('connecting');
 (async () => {
   await Promise.all([loadDisabled(), loadEngineVersion(), loadActivityRegistry()]);
   $('s-ext-version').textContent = EXT_VERSION;
+  $('s-engine-version').textContent = ENGINE_VERSION;
   renderActivities();
   await syncState();
 

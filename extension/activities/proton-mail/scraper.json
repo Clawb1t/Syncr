@@ -1,6 +1,9 @@
 {
-  "version": 1,
+  "version": 2,
   "pollMs": 2000,
+  "changeDetection": {
+    "compareFields": ["mode", "context"]
+  },
   "rules": [
     {
       "when": {
@@ -178,8 +181,10 @@
     }
   ],
   "default": {
-    "mode": "browsing",
-    "context": "Browsing emails",
-    "pageUrl": "https://mail.proton.me/"
+    "emit": {
+      "mode": "browsing",
+      "context": "Browsing emails",
+      "pageUrl": "https://mail.proton.me/"
+    }
   }
 }

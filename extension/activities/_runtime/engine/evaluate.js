@@ -24,7 +24,10 @@ const SyncrEngine = (function () {
         return resolveEmitV1(rule.emit, location);
       }
     }
-    if (def.default) return resolveEmitV1(def.default, location);
+    if (def.default) {
+      if (def.default.emit) return resolveEmitV1(def.default.emit, location);
+      return resolveEmitV1(def.default, location);
+    }
     return null;
   }
 
