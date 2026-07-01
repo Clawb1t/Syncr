@@ -4,7 +4,7 @@
   "description":          "Generic mail activity — no subjects, senders, or personal data",
   "category":             "Productivity",
   "icon":                 "✉️",
-  "logo":                 "logo.svg",
+  "logo":                 "logo.png",
   "version":              "1.0.0",
   "author":               "Syncr Contributors",
   "urlPattern":           "*://mail.proton.me/*",

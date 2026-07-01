@@ -8,7 +8,7 @@
 module.exports = {
   id:         'proton-mail',
   name:       'Proton Mail',
-  clientId:   '1522106123456789012',
+  clientId:   '1521825889397112852',
   urlPattern: '*://mail.proton.me/*',
 
   formatPresence({ mode, context, pageUrl }, syncr) {
