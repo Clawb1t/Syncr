@@ -11,10 +11,9 @@
 
 const fs   = require('fs');
 const path = require('path');
-const { loadActivities } = require('./activity-loader');
+const { loadActivities, getSyncr } = require('./activity-loader');
 const { RPCManager }     = require('./rpc-manager');
 const { LOG_FILE }       = require('./paths');
-const syncr              = require('./sdk');
 
 // File log — next to syncr-host.exe (not inside pkg snapshot)
 let logStream;
@@ -102,7 +101,7 @@ async function handleMessage({ type, activityId, data }) {
       if (!activity) { log('warn', `Unknown activityId: ${activityId}`); return; }
 
       let presence;
-      try   { presence = activity.formatPresence(data, syncr); }
+      try   { presence = activity.formatPresence(data); }
       catch (err) { log('error', `${activityId}.formatPresence(): ${err.message}`); return; }
 
       await rpc.setActivity(activity.clientId, presence);
@@ -151,6 +150,13 @@ function log(level, ...args) {
 }
 
 log('info', `Native host started — pid=${process.pid} — ${activities.size} activity(s) loaded.`);
+
+try {
+  getSyncr();
+  log('info', 'Syncr SDK loaded.');
+} catch (err) {
+  log('error', `Syncr SDK failed to load: ${err.message}`);
+}
 
 // ---------------------------------------------------------------------------
 // Background update check — runs 4 s after start so Discord has time to connect

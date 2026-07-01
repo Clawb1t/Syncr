@@ -1,7 +1,7 @@
 const DiscordRPC = require('discord-rpc');
 const fs         = require('fs');
 const { LOG_FILE } = require('./paths');
-const { validatePresence, primaryImageUrl } = require('./sdk');
+const { getSyncr } = require('./sdk-loader');
 
 function log(msg) {
   const line = `[${new Date().toISOString()}][rpc] ${msg}\n`;
@@ -59,7 +59,7 @@ class RPCManager {
    * Validates and passes through the full SET_ACTIVITY display shape.
    */
   _buildActivity(presence) {
-    return validatePresence(presence);
+    return getSyncr().validatePresence(presence);
   }
 
   async setActivity(clientId, presence) {
@@ -71,7 +71,7 @@ class RPCManager {
     try {
       const client   = await this._getClient(clientId);
       const activity = this._buildActivity(presence);
-      const newImage = primaryImageUrl(activity);
+      const newImage = getSyncr().primaryImageUrl(activity);
       const oldImage = this._lastImage.get(clientId) ?? null;
 
       // When the primary image changes Discord may serve a stale proxy-cached image.

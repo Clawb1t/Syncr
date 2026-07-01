@@ -12,6 +12,7 @@
     "scripts": [
       "host.js",
       "activity-loader.js",
+      "sdk-loader.js",
       "rpc-manager.js",
       "updater.js",
       "paths.js",

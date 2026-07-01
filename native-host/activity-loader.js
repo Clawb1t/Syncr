@@ -1,15 +1,14 @@
 const fs   = require('fs');
 const path = require('path');
 const { ACTIVITIES_DIR } = require('./paths');
-const syncr = require('./sdk');
+const { getSyncr } = require('./sdk-loader');
 
 /**
- * Bind the Syncr SDK into formatPresence so hot-updated activity modules
- * always receive `syncr` even if the caller only passes `data`.
+ * Bind the Syncr SDK into formatPresence so activity modules always receive it.
  */
 function wrapActivityModule(mod) {
   const original = mod.formatPresence;
-  mod.formatPresence = (data) => original(data, syncr);
+  mod.formatPresence = (data) => original.call(mod, data, getSyncr());
   return mod;
 }
 
@@ -36,7 +35,7 @@ function loadActivities() {
     const presencePath = path.join(ACTIVITIES_DIR, entry.name, 'presence.js');
 
     if (!fs.existsSync(presencePath)) {
-      process.stderr.write(`[ActivityLoader] Skipping ${entry.name} — no presence.js found\n`);
+      process.stderr.write(`[ActivityLoader] Skipping ${entry.name} - no presence.js found\n`);
       continue;
     }
 
@@ -46,7 +45,7 @@ function loadActivities() {
 
       const missing = ['id', 'name', 'clientId', 'urlPattern', 'formatPresence'].filter(k => !mod[k]);
       if (missing.length) {
-        process.stderr.write(`[ActivityLoader] Skipping ${entry.name} — missing fields: ${missing.join(', ')}\n`);
+        process.stderr.write(`[ActivityLoader] Skipping ${entry.name} - missing fields: ${missing.join(', ')}\n`);
         continue;
       }
 
@@ -60,4 +59,4 @@ function loadActivities() {
   return map;
 }
 
-module.exports = { loadActivities, syncr };
+module.exports = { loadActivities, getSyncr };
