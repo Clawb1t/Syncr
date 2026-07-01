@@ -1,6 +1,17 @@
 const fs   = require('fs');
 const path = require('path');
 const { ACTIVITIES_DIR } = require('./paths');
+const syncr = require('./sdk');
+
+/**
+ * Bind the Syncr SDK into formatPresence so hot-updated activity modules
+ * always receive `syncr` even if the caller only passes `data`.
+ */
+function wrapActivityModule(mod) {
+  const original = mod.formatPresence;
+  mod.formatPresence = (data) => original(data, syncr);
+  return mod;
+}
 
 /** * Scans native-host/activities/ for activity folders.
  * Each folder must contain a presence.js exporting:
@@ -39,7 +50,7 @@ function loadActivities() {
         continue;
       }
 
-      map.set(mod.id, mod);
+      map.set(mod.id, wrapActivityModule(mod));
       process.stderr.write(`[ActivityLoader] Loaded: ${mod.name} (${mod.id})\n`);
     } catch (err) {
       process.stderr.write(`[ActivityLoader] Error loading ${entry.name}/presence.js: ${err.message}\n`);
@@ -49,4 +60,4 @@ function loadActivities() {
   return map;
 }
 
-module.exports = { loadActivities };
+module.exports = { loadActivities, syncr };
