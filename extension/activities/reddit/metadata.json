@@ -1,0 +1,13 @@
+{
+  "id":           "reddit",
+  "name":         "Reddit",
+  "description":  "Tracks posts and browsing on reddit.com",
+  "category":     "Social",
+  "icon":         "🔴",
+  "logo":         "logo.svg",
+  "version":      "1.0.0",
+  "author":       "Syncr Contributors",
+  "urlPattern":   "*://www.reddit.com/*",
+  "buttonLabel":  "View on Reddit",
+  "activityType": "WATCHING"
+}
