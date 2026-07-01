@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Syncr",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "description": "Display what you're doing in Firefox as Discord Rich Presence.",
   "author": "Syncr Contributors",
 
@@ -34,6 +34,29 @@
     ],
     "persistent": true
   },
+
+  "content_scripts": [
+    {
+      "matches": ["*://music.youtube.com/*"],
+      "js": ["activities/youtube-music/content-script.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://www.youtube.com/*"],
+      "js": ["activities/youtube/content-script.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://www.reddit.com/*", "*://old.reddit.com/*"],
+      "js": ["activities/reddit/content-script.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://www.netflix.com/*"],
+      "js": ["activities/netflix/content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
 
   "web_accessible_resources": [
     "icons/icon.svg",

@@ -1,18 +1,16 @@
 'use strict';
 
 /**
- * Dynamic activity injector — runs site scrapers without manifest content_scripts.
- * Bundled activities: inject activities/{id}/content-script.js
- * Remote activities: inject activities/_runtime/runner.js (fetches scraper.json from GitHub)
+ * Dynamic activity injector — remote scrapers only (scraper.json on GitHub).
+ * Bundled activities use manifest content_scripts for reliable Firefox injection.
  */
 
 const INJECTOR_GITHUB_RAW = 'https://raw.githubusercontent.com/Clawb1t/Syncr/main';
 const META_CACHE_MS       = 5 * 60 * 1000;
 
-let disabledActivities  = new Set();
-const metaCache         = new Map(); // id -> { meta, ts }
-const tabInjected       = new Map(); // tabId -> Set<activityId>
-const tabOrigin         = new Map(); // tabId -> origin string
+let disabledActivities = new Set();
+const metaCache        = new Map();
+const tabInjected      = new Map();
 
 async function loadDisabledActivities() {
   try {
@@ -83,28 +81,20 @@ async function loadRegistryIds() {
   }
 }
 
-async function hasPermission(origins) {
+async function hasGrantedOrigins(origins) {
   if (!origins?.length) return false;
   try {
-    if (await browser.permissions.contains({ origins: ['<all_urls>'] })) return true;
-    for (const origin of origins) {
-      if (!await browser.permissions.contains({ origins: [origin] })) return false;
+    const all = await browser.permissions.getAll();
+    const granted = all.origins || [];
+    if (granted.includes('<all_urls>') || granted.includes('*://*/*')) return true;
+    for (const need of origins) {
+      const ok = granted.includes(need) || await browser.permissions.contains({ origins: [need] });
+      if (!ok) return false;
     }
     return true;
   } catch {
     return false;
   }
-}
-
-function clearTabInjection(tabId) {
-  tabInjected.delete(tabId);
-}
-
-async function injectBundled(tabId, activityId) {
-  await browser.tabs.executeScript(tabId, {
-    file: `activities/${activityId}/content-script.js`,
-    runAt: 'document_idle',
-  });
 }
 
 async function injectRemote(tabId, activityId) {
@@ -115,36 +105,24 @@ async function injectRemote(tabId, activityId) {
   });
   await browser.tabs.executeScript(tabId, {
     file: 'activities/_runtime/runner.js',
-    runAt: 'document_idle',
   });
 }
 
-async function injectActivity(tabId, activityId, meta) {
+async function injectActivity(tabId, activityId) {
   const set = tabInjected.get(tabId) || new Set();
   if (set.has(activityId)) return;
   try {
-    if (isRemoteScraper(meta)) {
-      await injectRemote(tabId, activityId);
-    } else {
-      await injectBundled(tabId, activityId);
-    }
+    await injectRemote(tabId, activityId);
     set.add(activityId);
     tabInjected.set(tabId, set);
   } catch (err) {
-    console.warn(`[Syncr] inject failed for ${activityId} on tab ${tabId}:`, err?.message || err);
+    console.warn(`[Syncr] remote inject failed for ${activityId} on tab ${tabId}:`, err?.message || err);
   }
 }
 
 async function syncTab(tabId, url) {
   if (!url || !/^https?:\/\//i.test(url)) return;
-
-  let origin;
-  try { origin = new URL(url).origin; } catch { return; }
-
-  if (tabOrigin.get(tabId) !== origin) {
-    clearTabInjection(tabId);
-    tabOrigin.set(tabId, origin);
-  }
+  await loadDisabledActivities();
 
   const ids = await loadRegistryIds();
 
@@ -152,13 +130,13 @@ async function syncTab(tabId, url) {
     if (disabledActivities.has(id)) continue;
 
     const meta = await fetchActivityMeta(id);
-    if (!meta) continue;
+    if (!meta || !isRemoteScraper(meta)) continue;
 
     const origins = activityOrigins(meta);
     if (!urlMatchesPatterns(url, origins)) continue;
-    if (!await hasPermission(origins)) continue;
+    if (!await hasGrantedOrigins(origins)) continue;
 
-    await injectActivity(tabId, id, meta);
+    await injectActivity(tabId, id);
   }
 }
 
@@ -166,12 +144,7 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab?.url) {
     syncTab(tabId, tab.url);
   } else if (changeInfo.url) {
-    try {
-      const next = new URL(changeInfo.url).origin;
-      if (tabOrigin.get(tabId) && tabOrigin.get(tabId) !== next) {
-        clearTabInjection(tabId);
-      }
-    } catch {}
+    tabInjected.delete(tabId);
   }
 });
 
@@ -183,42 +156,40 @@ browser.tabs.onActivated.addListener(async ({ tabId }) => {
 });
 
 browser.tabs.onRemoved.addListener(tabId => {
-  clearTabInjection(tabId);
-  tabOrigin.delete(tabId);
+  tabInjected.delete(tabId);
 });
+
+if (browser.permissions?.onAdded) {
+  browser.permissions.onAdded.addListener(() => {
+    tabInjected.clear();
+    scanAllTabs();
+  });
+}
 
 browser.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'activity:permissionChanged') {
-    metaCache.delete(msg.activityId);
-    browser.tabs.query({}).then(tabs => {
-      for (const tab of tabs) {
-        if (tab.id != null && tab.url) syncTab(tab.id, tab.url);
-      }
-    }).catch(() => {});
+    if (msg.activityId) metaCache.delete(msg.activityId);
+    tabInjected.clear();
+    scanAllTabs();
     return;
   }
 
   if (msg.type === 'activity:resyncTabs') {
     tabInjected.clear();
-    browser.tabs.query({}).then(tabs => {
-      for (const tab of tabs) {
-        if (tab.id != null && tab.url) syncTab(tab.id, tab.url);
-      }
-    }).catch(() => {});
+    scanAllTabs();
     sendResponse({ ok: true });
     return true;
   }
 });
 
 async function scanAllTabs() {
-  await loadDisabledActivities();
   try {
     const tabs = await browser.tabs.query({});
     for (const tab of tabs) {
       if (tab.id != null && tab.url) await syncTab(tab.id, tab.url);
     }
   } catch (err) {
-    console.warn('[Syncr] startup tab scan failed:', err?.message || err);
+    console.warn('[Syncr] tab scan failed:', err?.message || err);
   }
 }
 
@@ -227,10 +198,4 @@ browser.runtime.onInstalled.addListener(() => {
   scanAllTabs();
 });
 
-browser.runtime.onStartup.addListener(() => {
-  tabInjected.clear();
-  scanAllTabs();
-});
-
-// Extension reload during development — scan open tabs immediately
 scanAllTabs();

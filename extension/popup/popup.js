@@ -128,14 +128,23 @@ function requestHostPermissionNow(origins) {
   });
 }
 
+function isRemoteActivity(meta) {
+  return meta?.scraper === 'remote';
+}
+
 async function activityHasPermission(meta) {
+  if (!isRemoteActivity(meta)) return true;
   const origins = getActivityOrigins(meta);
   if (!origins.length) return true;
   if (!supportsDynamicLoader()) return true;
   try {
-    if (await browser.permissions.contains({ origins: ['<all_urls>'] })) return true;
+    const all = await browser.permissions.getAll();
+    const granted = all.origins || [];
+    if (granted.includes('<all_urls>') || granted.includes('*://*/*')) return true;
     for (const origin of origins) {
-      if (!await browser.permissions.contains({ origins: [origin] })) return false;
+      if (!granted.includes(origin) && !await browser.permissions.contains({ origins: [origin] })) {
+        return false;
+      }
     }
     return true;
   } catch {
@@ -146,6 +155,7 @@ async function activityHasPermission(meta) {
 async function anyActivityNeedsPermission() {
   if (!supportsDynamicLoader()) return false;
   for (const meta of ACTIVITY_META) {
+    if (!isRemoteActivity(meta)) continue;
     if (disabledActivities.has(meta.id) || !meta._ready) continue;
     if (!await activityHasPermission(meta)) return true;
   }
@@ -155,6 +165,7 @@ async function anyActivityNeedsPermission() {
 function collectMissingOrigins() {
   const origins = new Set();
   for (const meta of ACTIVITY_META) {
+    if (!isRemoteActivity(meta)) continue;
     if (disabledActivities.has(meta.id) || !meta._ready) continue;
     for (const o of getActivityOrigins(meta)) origins.add(o);
   }
@@ -842,7 +853,7 @@ function renderActivities(filter = '') {
 
       if (enabled) {
         const origins = getActivityOrigins(meta);
-        if (!origins.length) {
+        if (!isRemoteActivity(meta) || !origins.length) {
           finishEnable();
           return;
         }
@@ -925,7 +936,7 @@ function buildCard(meta) {
     } else {
       updateHint = `<div class="ac-update-hint">${esc(meta._lockReason)}</div>`;
     }
-  } else if (meta._ready && isEnabled && meta._hasPermission === false) {
+  } else if (meta._ready && isEnabled && isRemoteActivity(meta) && meta._hasPermission === false) {
     updateHint = `<div class="ac-update-hint">Site access required · <button type="button" class="ac-update-link" data-allow-permission="${esc(meta.id)}">Allow access</button></div>`;
   }
 

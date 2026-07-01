@@ -152,12 +152,13 @@ Locked activities show why (extension update vs host update) and link to the fix
 
 **Location:** `extension/background/activity-injector.js`
 
-There are no per-site `content_scripts` in the manifest. Instead:
+**Bundled activities** (YouTube, Netflix, Reddit, etc.) use manifest `content_scripts` for reliable scraping.
 
-1. User enables an activity in the popup → `browser.permissions.request({ origins })`.
-2. On tab load, the injector matches the URL against enabled activities' `origins` from GitHub `metadata.json`.
-3. **Bundled** (`scraper: "bundled"`): injects `activities/{id}/content-script.js`.
-4. **Remote** (`scraper: "remote"`): injects `activities/_runtime/runner.js`, which fetches `scraper.json` from GitHub.
+**Remote activities** (`scraper: "remote"` in `metadata.json`, e.g. Proton Mail):
+
+1. User enables the activity and grants site access in the popup.
+2. On tab load, the injector matches the URL and injects `activities/_runtime/runner.js`.
+3. The runner fetches `scraper.json` from GitHub.
 
 See [`docs/scraper-schema.md`](scraper-schema.md).
 

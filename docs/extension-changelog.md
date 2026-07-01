@@ -8,7 +8,19 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Version history
 
-### 1.0.15 (current)
+### 1.0.16 (current)
+
+**Hotfix: bundled activities work again**
+
+- Restored manifest `content_scripts` for YouTube, YouTube Music, Reddit, and Netflix. Firefox does not reliably run bundled scrapers via programmatic `executeScript`.
+- Dynamic injector now handles **remote-only** activities (e.g. Proton Mail `scraper.json`).
+- Site access prompts only appear for remote activities, not bundled ones.
+
+**After updating:** refresh any open YouTube/Netflix/Reddit tabs once (or reload the extension and revisit the page).
+
+---
+
+### 1.0.15
 
 **Hotfix: site permission prompts**
 
