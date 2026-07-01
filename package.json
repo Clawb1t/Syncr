@@ -6,6 +6,7 @@
   "scripts": {
     "build:xpi": "web-ext build --source-dir extension --artifacts-dir dist --overwrite-dest",
     "update": "powershell -ExecutionPolicy Bypass -File update.ps1",
+    "update:host": "powershell -ExecutionPolicy Bypass -File update.ps1 -HostOnly",
     "release": "powershell -ExecutionPolicy Bypass -File update.ps1"
   },
   "devDependencies": {

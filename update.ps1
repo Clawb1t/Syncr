@@ -3,11 +3,18 @@
 # Usage:
 #   .\update.ps1                Full update + GitHub release
 #   .\update.ps1 -PublishOnly   Re-fetch signed XPI from AMO (waits for review), then publish
+#   .\update.ps1 -HostOnly      Host-only update (no extension/AMO) — see below
 #   .\update.ps1 -BuildOnly     Build artifacts only (no git/GitHub)
 #
+# Host-only release (native-host/version.json only, no extension bump):
+#   1. Bump native-host/version.json (e.g. 1.0.4)
+#   2. npm run update:host
+#   Pushes host source to main and uploads syncr-host.exe to the current latest GitHub release.
+#   Users detect the update via version.json on main; they download the exe from releases/latest.
+#
 # Prerequisites:
-#   - .env with AMO_JWT_ISSUER and AMO_JWT_SECRET
-#   - Bump extension/manifest.json version before running
+#   - .env with AMO_JWT_ISSUER and AMO_JWT_SECRET (full update only)
+#   - Bump extension/manifest.json version before a full update
 #   - git (GitHub Desktop includes git) and gh CLI for publishing
 #
 # Note: GitHub Desktop has no scriptable API. This uses the same git repo
@@ -15,7 +22,8 @@
 
 param(
   [switch]$BuildOnly,
-  [switch]$PublishOnly
+  [switch]$PublishOnly,
+  [switch]$HostOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -414,15 +422,49 @@ function Publish-ReleaseAssets {
   $hostPath  = Join-Path $root 'dist\syncr-host.exe'
   $setupPath = Get-SetupExePath $Version
 
-  Write-Step "Creating GitHub release"
+  Publish-AssetsToRelease -Tag $Tag -Repo $Repo -AssetPaths @($xpiPath, $hostPath, $setupPath) -CreateIfMissing -Title "Syncr v$Version"
+}
+
+function Get-LatestReleaseTag {
+  param([string]$Repo)
+
   if ($script:GhExe) {
     & $script:GhExe auth status 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
-      & $script:GhExe release upload $Tag $xpiPath $hostPath $setupPath --clobber 2>$null
-      if ($LASTEXITCODE -ne 0) {
-        Invoke-Gh @('release', 'create', $Tag, '--title', "Syncr v$Version", '--generate-notes', $xpiPath, $hostPath, $setupPath)
+      $tag = & $script:GhExe release list --repo $Repo --limit 1 --json tagName -q '.[0].tagName' 2>$null
+      if ($tag) { return $tag.Trim() }
+    }
+  }
+
+  $manifest = Get-Content (Join-Path $root 'extension\manifest.json') -Raw | ConvertFrom-Json
+  return "v$($manifest.version)"
+}
+
+function Publish-AssetsToRelease {
+  param(
+    [string]$Tag,
+    [string]$Repo,
+    [string[]]$AssetPaths,
+    [switch]$CreateIfMissing,
+    [string]$Title = ''
+  )
+
+  foreach ($f in $AssetPaths) {
+    if (-not (Test-Path $f)) { Write-Err "Missing release asset: $f" }
+  }
+
+  Write-Step "Uploading to GitHub release $Tag"
+  if ($script:GhExe) {
+    & $script:GhExe auth status 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+      & $script:GhExe release upload $Tag @AssetPaths --repo $Repo --clobber 2>$null
+      if ($LASTEXITCODE -ne 0 -and $CreateIfMissing) {
+        $args = @('release', 'create', $Tag, '--repo', $Repo, '--title', $Title, '--generate-notes') + $AssetPaths
+        Invoke-Gh @args
+      } elseif ($LASTEXITCODE -ne 0) {
+        Write-Err "gh release upload $Tag failed - does the release exist?"
       }
-      $url = & $script:GhExe release view $Tag --json url -q '.url'
+      $url = & $script:GhExe release view $Tag --repo $Repo --json url -q '.url'
       Write-Ok "Live at $url"
       return
     }
@@ -430,29 +472,100 @@ function Publish-ReleaseAssets {
 
   if (Get-GithubToken) {
     Write-Warn "Using GITHUB_TOKEN from .env (gh CLI not available)"
-    node (Join-Path $root 'scripts\publish-github-release.js') $Tag $Repo $xpiPath $hostPath $setupPath
+    $uploadScript = if ($CreateIfMissing) {
+      Join-Path $root 'scripts\publish-github-release.js'
+    } else {
+      Join-Path $root 'scripts\publish-release-assets.js'
+    }
+    if ($CreateIfMissing -and $AssetPaths.Count -eq 3) {
+      node $uploadScript $Tag $Repo $AssetPaths[0] $AssetPaths[1] $AssetPaths[2]
+    } else {
+      node $uploadScript $Tag $Repo @AssetPaths
+    }
     if ($LASTEXITCODE -ne 0) { Write-Err "GitHub release upload failed" }
     return
   }
 
   Write-Warn "No gh CLI or GITHUB_TOKEN - release assets not uploaded automatically"
   Write-Host ""
-  Write-Host "  Tag pushed. Create the release manually:" -ForegroundColor Yellow
-  Write-Host "  https://github.com/$Repo/releases/new?tag=$Tag" -ForegroundColor White
+  Write-Host "  Upload manually to release ${Tag}:" -ForegroundColor Yellow
+  Write-Host "  https://github.com/$Repo/releases/tag/$Tag" -ForegroundColor White
   Write-Host ""
-  Write-Host "  Attach these files:" -ForegroundColor Yellow
-  Write-Host "    $xpiPath"
-  Write-Host "    $hostPath"
-  Write-Host "    $setupPath"
+  foreach ($f in $AssetPaths) { Write-Host "    $f" -ForegroundColor Yellow }
   Write-Host ""
   Write-Host "  Or add GITHUB_TOKEN to .env for fully automatic uploads." -ForegroundColor DarkGray
-  Write-Host "  Create token: https://github.com/settings/tokens (repo scope)" -ForegroundColor DarkGray
+}
+
+function Get-HostVersion {
+  $hostVersionFile = Join-Path $root 'native-host\version.json'
+  return (Get-Content $hostVersionFile -Raw | ConvertFrom-Json).version
+}
+
+function Publish-HostOnly {
+  param([string]$HostVersion, [string]$Repo)
+
+  $hostPath = Join-Path $root 'dist\syncr-host.exe'
+  if (-not (Test-Path $hostPath)) { Write-Err "Missing dist/syncr-host.exe - build failed?" }
+
+  Write-Step "Committing host files (v$HostVersion)"
+  Invoke-Git add native-host/
+  Invoke-Git -AllowFailure diff --staged --quiet
+  if ($LASTEXITCODE -ne 0) {
+    Invoke-Git commit -m "Host v$HostVersion"
+    Write-Ok "Committed"
+  } else {
+    Write-Warn "Nothing new to commit"
+  }
+
+  Write-Step "Pushing to GitHub"
+  $branch = (& $script:GitExe -C $root rev-parse --abbrev-ref HEAD).Trim()
+  Invoke-Git push origin $branch
+  Write-Ok "Pushed $branch (version.json on main drives update detection)"
+
+  $releaseTag = Get-LatestReleaseTag -Repo $Repo
+  Write-Ok "Uploading syncr-host.exe to latest release: $releaseTag"
+
+  Publish-AssetsToRelease -Tag $releaseTag -Repo $Repo -AssetPaths @($hostPath)
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 $script:GitExe = Get-GitExe
 $script:GhExe  = Get-GhExe
+
+if ($HostOnly -and $PublishOnly) {
+  Write-Err "-HostOnly cannot be combined with -PublishOnly"
+}
+
+if ($HostOnly) {
+  $hostVersion = Get-HostVersion
+  $repo        = Get-RepoSlug
+
+  Write-Host ""
+  Write-Host "  Syncr host-only update v$hostVersion"
+  Write-Host "  ===================================="
+  if ($script:GitExe) { Write-Host "  git: $($script:GitExe)" -ForegroundColor DarkGray }
+  if ($script:GhExe)   { Write-Host "  gh:  $($script:GhExe)" -ForegroundColor DarkGray }
+
+  Build-Host
+
+  if ($BuildOnly) {
+    Write-Host ""
+    Write-Host "  Host build complete (skipped git/GitHub)." -ForegroundColor Green
+    Write-Host ""
+    exit 0
+  }
+
+  if (-not $script:GitExe) { Write-Err "git not found. Install Git or GitHub Desktop." }
+
+  Publish-HostOnly -HostVersion $hostVersion -Repo $repo
+
+  Write-Host ""
+  Write-Host "  Done! Host v$hostVersion is published." -ForegroundColor Green
+  Write-Host "  Users on older hosts will see an update after the next check." -ForegroundColor DarkGray
+  Write-Host ""
+  exit 0
+}
 
 $manifest = Get-Content (Join-Path $root 'extension\manifest.json') -Raw | ConvertFrom-Json
 $version  = $manifest.version
