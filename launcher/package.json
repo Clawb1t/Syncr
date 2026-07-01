@@ -1,6 +1,6 @@
 {
     "name":  "syncr-launcher",
-    "version":  "1.0.24",
+    "version":  "1.0.25",
     "description":  "Syncr Setup - one-time installer for Syncr",
     "main":  "main.js",
     "author":  "Clawb1t",
