@@ -1,0 +1,168 @@
+{
+  "version": 2,
+  "pollMs": 2000,
+  "profiles": [
+    {
+      "id": "old-reddit",
+      "when": { "selectorExists": [".default-header", "#header"] },
+      "rules": [
+        {
+          "when": { "pathIncludes": "/comments/" },
+          "require": ["title"],
+          "extract": {
+            "title": {
+              "coalesce": [
+                { "selectorText": "p.title > a" },
+                { "selectorText": "a.title" }
+              ]
+            },
+            "authorRaw": { "selectorText": ".tagline .author" },
+            "author": {
+              "regexReplace": {
+                "source": "{authorRaw}",
+                "pattern": "^u/",
+                "replacement": ""
+              }
+            },
+            "score": { "selectorText": ".score.unvoted, .score.likes" },
+            "comments": { "selectorText": ".comments" },
+            "subName": { "selectorText": ".redditname" },
+            "subreddit": {
+              "coalesce": [
+                { "template": "r/{subName}" },
+                { "helper": "reddit.subredditFromPath" }
+              ]
+            },
+            "og": { "metaContent": "og:image" },
+            "thumbRaw": { "selectorAttr": { "selector": ".thumbnail img", "attr": "src" } },
+            "thumbnailUrl": {
+              "coalesce": [
+                { "helper": "reddit.sanitizeThumb", "args": { "thumb": "{thumbRaw}", "og": "{og}" } },
+                { "metaContent": "og:image" }
+              ]
+            },
+            "subredditUrl": { "helper": "reddit.absUrl", "args": { "path": "/{subreddit}" } },
+            "authorUrl": { "helper": "reddit.absUrl", "args": { "path": "/user/{author}" } }
+          },
+          "emit": {
+            "title": "{title}",
+            "author": "{author}",
+            "authorUrl": "{authorUrl}",
+            "subreddit": "{subreddit}",
+            "subredditUrl": "{subredditUrl}",
+            "score": "{score}",
+            "comments": "{comments}",
+            "postType": "",
+            "contentHref": "",
+            "thumbnailUrl": "{thumbnailUrl}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "when": { "pathIncludes": "/user/" },
+          "extract": {
+            "browsingContext": {
+              "coalesce": [
+                { "selectorText": ".titlebox > h1" },
+                { "helper": "reddit.userFromPath" },
+                { "literal": "Profile" }
+              ]
+            }
+          },
+          "emit": { "browsing": true, "browsingContext": "{browsingContext}" }
+        },
+        {
+          "extract": {
+            "browsingContext": { "helper": "reddit.browsingContext" }
+          },
+          "emit": { "browsing": true, "browsingContext": "{browsingContext}" }
+        }
+      ]
+    },
+    {
+      "id": "new-reddit",
+      "when": { "selectorExists": "shreddit-post" },
+      "rules": [
+        {
+          "when": { "pathRegex": "/r/[^/]+/comments/" },
+          "require": ["title"],
+          "extract": {
+            "title": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "shreddit-post", "attr": "post-title" } },
+                { "selectorAttr": { "selector": "shreddit-title", "attr": "title" } },
+                { "selectorText": "shreddit-title" },
+                { "selectorText": "h1" }
+              ]
+            },
+            "authorRaw": { "selectorAttr": { "selector": "shreddit-post", "attr": "author" } },
+            "author": {
+              "regexReplace": {
+                "source": "{authorRaw}",
+                "pattern": "^u/",
+                "replacement": ""
+              }
+            },
+            "score": { "selectorAttr": { "selector": "shreddit-post", "attr": "score" } },
+            "comments": { "selectorAttr": { "selector": "shreddit-post", "attr": "comment-count" } },
+            "subreddit": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "shreddit-post", "attr": "subreddit-prefixed-name" } },
+                { "selectorAttr": { "selector": "shreddit-subreddit-header", "attr": "prefixed-name" } },
+                { "helper": "reddit.subredditFromPath" }
+              ]
+            },
+            "permalink": { "selectorAttr": { "selector": "shreddit-post", "attr": "permalink" } },
+            "postType": { "selectorAttr": { "selector": "shreddit-post", "attr": "post-type" } },
+            "contentHref": { "selectorAttr": { "selector": "shreddit-post", "attr": "content-href" } },
+            "og": { "metaContent": "og:image" },
+            "thumbRaw": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "shreddit-post", "attr": "icon" } },
+                { "selectorAttr": { "selector": "shreddit-post", "attr": "thumbnail-url" } }
+              ]
+            },
+            "thumbnailUrl": {
+              "helper": "reddit.sanitizeThumb",
+              "args": { "thumb": "{thumbRaw}", "og": "{og}" }
+            },
+            "pageUrl": {
+              "coalesce": [
+                { "helper": "reddit.absUrl", "args": { "path": "{permalink}" } },
+                { "literal": "{url}" }
+              ]
+            },
+            "subredditUrl": { "helper": "reddit.absUrl", "args": { "path": "/{subreddit}" } },
+            "authorUrl": { "helper": "reddit.absUrl", "args": { "path": "/user/{author}" } }
+          },
+          "emit": {
+            "title": "{title}",
+            "author": "{author}",
+            "authorUrl": "{authorUrl}",
+            "subreddit": "{subreddit}",
+            "subredditUrl": "{subredditUrl}",
+            "score": "{score}",
+            "comments": "{comments}",
+            "postType": "{postType}",
+            "contentHref": "{contentHref}",
+            "thumbnailUrl": "{thumbnailUrl}",
+            "pageUrl": "{pageUrl}"
+          }
+        },
+        {
+          "extract": {
+            "browsingContext": { "helper": "reddit.browsingContext" }
+          },
+          "emit": { "browsing": true, "browsingContext": "{browsingContext}" }
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "extract": { "browsingContext": { "helper": "reddit.browsingContext" } },
+      "emit": { "browsing": true, "browsingContext": "{browsingContext}" }
+    }
+  ],
+  "default": { "emit": { "browsing": true, "browsingContext": "Home" } }
+}

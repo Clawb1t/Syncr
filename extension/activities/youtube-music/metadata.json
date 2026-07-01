@@ -1,15 +1,16 @@
-{
-  "id":           "youtube-music",
-  "name":         "YouTube Music",
-  "description":  "Tracks songs on music.youtube.com",
-  "category":     "Music",
-  "icon":         "🎵",
-  "logo":         "logo.png",
-  "version":      "1.0.0",
-  "author":       "Syncr Contributors",
-  "urlPattern":   "*://music.youtube.com/*",
-  "origins":      ["*://music.youtube.com/*"],
-  "scraper":      "bundled",
-  "buttonLabel":  "Listen on YouTube Music",
-  "activityType": "LISTENING TO"
-}
+{
+  "id":           "youtube-music",
+  "name":         "YouTube Music",
+  "description":  "Tracks songs on music.youtube.com",
+  "category":     "Music",
+  "icon":         "🎵",
+  "logo":         "logo.png",
+  "version":      "1.0.0",
+  "author":       "Syncr Contributors",
+  "urlPattern":   "*://music.youtube.com/*",
+  "origins":      ["*://music.youtube.com/*", "*://music.youtube.com"],
+  "scraper":      "remote",
+  "minEngineVersion": "2.0.0",
+  "buttonLabel":  "Listen on YouTube Music",
+  "activityType": "LISTENING TO"
+}

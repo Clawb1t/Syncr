@@ -27,6 +27,19 @@ function urlMatchesPatterns(url, patterns) {
   return patterns.some(pat => patternToRegex(pat).test(url));
 }
 
+function metaToIndexEntry(meta) {
+  if (!meta || meta.scraper !== 'remote') return null;
+  const origins = meta.origins?.length ? meta.origins : (meta.urlPattern ? [meta.urlPattern] : []);
+  if (!origins.length) return null;
+  return {
+    id:               meta.id,
+    origins,
+    fetchOrigins:     meta.fetchOrigins || [],
+    privacy:          !!meta.privacy,
+    minEngineVersion: meta.minEngineVersion || meta.minExtensionVersion || '2.0.0',
+  };
+}
+
 async function refreshRemoteActivityIndex(force = false) {
   if (!force && remoteIndexLoadedAt && Date.now() - remoteIndexLoadedAt < REMOTE_INDEX_MS) {
     return remoteActivityIndex;
@@ -47,9 +60,9 @@ async function refreshRemoteActivityIndex(force = false) {
           .then(r => r.ok ? r.json() : null);
       } catch {}
       if (!meta || meta.scraper !== 'remote') continue;
-      const origins = meta.origins?.length ? meta.origins : (meta.urlPattern ? [meta.urlPattern] : []);
-      if (!origins.length) continue;
-      byId.set(id, { id, origins });
+      const entry = metaToIndexEntry(meta);
+      if (!entry) continue;
+      byId.set(id, entry);
     }
 
     remoteActivityIndex = [...byId.values()];
@@ -84,9 +97,9 @@ async function loadBundledRemoteIndex() {
           .then(r => r.ok ? r.json() : null);
       } catch {}
       if (!meta || meta.scraper !== 'remote') continue;
-      const origins = meta.origins?.length ? meta.origins : (meta.urlPattern ? [meta.urlPattern] : []);
-      if (!origins.length) continue;
-      index.push({ id, origins });
+      const entry = metaToIndexEntry(meta);
+      if (!entry) continue;
+      index.push(entry);
     }
 
     return index;
@@ -96,9 +109,12 @@ async function loadBundledRemoteIndex() {
 }
 
 function resolveRemoteActivityForUrl(url) {
-  return remoteActivityIndex
-    .filter(entry => urlMatchesPatterns(url, entry.origins))
-    .map(entry => entry.id);
+  return remoteActivityIndex.filter(entry => urlMatchesPatterns(url, entry.origins));
+}
+
+function findRemoteEntryForUrl(url) {
+  const matches = resolveRemoteActivityForUrl(url);
+  return matches[0] || null;
 }
 
 refreshRemoteActivityIndex(true);
@@ -282,8 +298,15 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'activity:resolveForUrl') {
     refreshRemoteActivityIndex()
       .then(() => {
-        const ids = resolveRemoteActivityForUrl(msg.url || '');
-        sendResponse({ id: ids[0] || null, ids, ready: true });
+        const entry = findRemoteEntryForUrl(msg.url || '');
+        sendResponse({
+          id:               entry?.id || null,
+          ids:              resolveRemoteActivityForUrl(msg.url || '').map(e => e.id),
+          ready:            true,
+          fetchOrigins:     entry?.fetchOrigins || [],
+          privacy:          entry?.privacy || false,
+          minEngineVersion: entry?.minEngineVersion || '2.0.0',
+        });
       })
       .catch(() => sendResponse({ id: null, ids: [], ready: false }));
     return true;

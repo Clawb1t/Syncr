@@ -9,6 +9,7 @@ const GITHUB_API         = 'https://api.github.com/repos/Clawb1t/Syncr';
 const RELEASES_URL       = 'https://github.com/Clawb1t/Syncr/releases/latest';
 const REGISTRY_CACHE_TTL = 5 * 60 * 1000; // soft cache — always revalidates in background
 const EXT_VERSION        = browser.runtime.getManifest().version;
+const ENGINE_VERSION     = browser.runtime.getManifest().syncr?.engineVersion || '2.0.0';
 const DYNAMIC_LOADER_VER = '1.0.13';
 
 let BUNDLED_ACTIVITY_IDS = [];
@@ -122,26 +123,19 @@ function mergeRegistryIds(remoteIds, bundledIds) {
 function enrichActivityMeta(meta, bundledIds, hostStatus, remoteExtVersion) {
   const host       = (hostStatus ?? []).find(s => s.id === meta.id);
   const inBundle   = bundledIds.includes(meta.id);
-  const minExt     = meta.minExtensionVersion;
+  const minEngine  = meta.minEngineVersion || meta.minExtensionVersion || '2.0.0';
   const isRemote   = meta.scraper === 'remote';
-  const dynamic    = supportsDynamicLoader();
   const hostReady  = !!(host?.installed && host?.upToDate);
   const hostKnown  = hostStatus?.length > 0;
 
-  let extOk;
-  if (dynamic) {
-    extOk = isRemote || inBundle;
-    if (minExt && semverGt(minExt, EXT_VERSION)) extOk = false;
-  } else {
-    extOk = inBundle && (!minExt || semverGte(EXT_VERSION, minExt));
-  }
+  const extOk = semverGte(ENGINE_VERSION, minEngine);
 
   let lockReason = null;
   let lockAction = null;
 
   if (!extOk) {
-    const need = minExt && semverGt(minExt, EXT_VERSION) ? minExt : (remoteExtVersion || 'latest');
-    lockReason = `Requires extension v${need}`;
+    const need = semverGt(minEngine, ENGINE_VERSION) ? minEngine : (remoteExtVersion || 'latest');
+    lockReason = `Requires engine v${need}`;
     lockAction = 'extension';
   } else if (hostKnown && !hostReady) {
     lockReason = host?.installed ? 'Host activity update available' : 'Run Check for updates in Updates';
@@ -471,26 +465,27 @@ function renderActivitiesUpdateList(activityStatus) {
 
   list.innerHTML = activityStatus.map(a => {
     const meta = ACTIVITY_META.find(m => m.id === a.id);
-    const inBundle = BUNDLED_ACTIVITY_IDS.includes(a.id);
+    const minEngine = meta?.minEngineVersion || meta?.minExtensionVersion || '2.0.0';
+    const engineOk = semverGte(ENGINE_VERSION, minEngine);
     let statusClass = 'muted';
     let statusText  = 'Not installed';
 
-    if (!inBundle) {
+    if (!engineOk) {
       statusClass = 'warn';
-      statusText  = 'Needs extension update';
+      statusText  = 'Needs engine update';
     } else if (a.installed && a.upToDate) {
       statusClass = 'ok';
       statusText  = 'Up to date';
     } else if (a.installed) {
       statusClass = 'warn';
       statusText  = 'Host update available';
-    } else if (inBundle) {
+    } else {
       statusClass = 'warn';
       statusText  = 'Host install needed';
     }
 
-    const note = !inBundle && meta?.minExtensionVersion
-      ? ` · ext v${meta.minExtensionVersion}+`
+    const note = !engineOk && minEngine
+      ? ` · engine v${minEngine}+`
       : '';
 
     return `<div class="updates-activity-row">

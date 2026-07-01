@@ -10,6 +10,7 @@
   "urlPattern":           "*://mail.proton.me/*",
   "origins":              ["*://mail.proton.me/*", "*://mail.proton.me", "*://mail.protonmail.com/*", "*://mail.protonmail.com"],
   "scraper":              "remote",
+  "minEngineVersion":     "2.0.0",
   "minExtensionVersion":  "1.0.17",
   "buttonLabel":          "Open Proton Mail",
   "activityType":         "WATCHING",

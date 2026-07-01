@@ -1,8 +1,8 @@
-# Remote scraper schema (v1)
+# Remote scraper schema
 
-Remote activities ship a **`scraper.json`** file on GitHub instead of a bundled `content-script.js`. The extension injects `activities/_runtime/runner.js`, fetches this file, and runs the declarative engine.
+Remote activities ship **`scraper.json`** on GitHub. The extension runs `activities/_runtime/universal.js` + **Scraper Engine v2** (`engineVersion` 2.0.0). No bundled `content-script.js`.
 
-Use remote scrapers for simple sites (URL rules, DOM selectors, static labels). Complex integrations (API calls, video progress, rich parsing) still use **bundled** `content-script.js` until the engine grows.
+Full spec: [`scraper-engine-v2-spec.md`](scraper-engine-v2-spec.md)
 
 ---
 
@@ -13,85 +13,109 @@ Use remote scrapers for simple sites (URL rules, DOM selectors, static labels). 
   "id": "my-site",
   "scraper": "remote",
   "origins": ["*://www.example.com/*"],
-  "minExtensionVersion": "1.0.13"
+  "fetchOrigins": ["https://www.example.com"],
+  "minEngineVersion": "2.0.0"
 }
 ```
 
 | Field | Purpose |
 |---|---|
 | `scraper` | Must be `"remote"` |
-| `origins` | Host patterns passed to `browser.permissions.request` |
-| `minExtensionVersion` | Minimum extension with the dynamic loader |
+| `origins` | URL patterns for activity resolution |
+| `fetchOrigins` | Allowlist for `fetchJson` (optional) |
+| `minEngineVersion` | Minimum `manifest.syncr.engineVersion` |
 
-Also add the ID to `extension/activities/registry.json` and ship `native-host/activities/{id}/presence.js`.
+Add the ID to `extension/activities/registry.json` and ship `native-host/activities/{id}/presence.js`.
 
 ---
 
-## scraper.json shape
+## scraper.json v1 (legacy)
+
+Proton Mail uses v1: static `when` + `emit`. Engine runs v1 via compatibility shim when `"version": 1`.
+
+---
+
+## scraper.json v2
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "pollMs": 2000,
+  "events": ["yt-navigate-finish"],
+  "changeDetection": {
+    "seekThreshold": 5,
+    "compareFields": ["title", "paused"],
+    "playbackFields": { "time": "currentTime", "paused": "paused" }
+  },
+  "profiles": [],
   "rules": [
     {
-      "when": { "pathIncludes": "/search", "searchParam": { "q": "*" } },
-      "emit": { "mode": "search", "searchQuery": "from-url" }
+      "when": { "pathIncludes": "/watch" },
+      "extract": {
+        "title": { "selectorText": "h1" },
+        "playback": { "video": { "selector": "video", "minReadyState": 2 } }
+      },
+      "require": ["title", "playback"],
+      "emit": {
+        "title": "{title}",
+        "currentTime": "{playback.currentTime}",
+        "paused": "{playback.paused}"
+      }
     }
   ],
-  "default": { "browsing": true, "browsingContext": "Example" }
+  "fallback": { "emit": { "browsing": true } },
+  "default": { "emit": { "browsing": true } }
 }
 ```
 
-Rules are evaluated top to bottom. The first matching rule wins. If none match, `default` is used.
+### Extractor primitives
 
----
-
-## `when` conditions
-
-All conditions in a `when` object must pass (AND logic).
-
-| Key | Type | Meaning |
-|---|---|---|
-| `hostnameIncludes` | string or string[] | `location.hostname` contains text |
-| `pathIncludes` | string or string[] | pathname contains text (lowercased) |
-| `pathRegex` | string | regex tested against pathname |
-| `pathRegexFlags` | string | optional regex flags (default `i`) |
-| `searchParam` | object | query param key → exact value, or `"*"` for any value |
-| `hashParam` | object | hash query param key → exact value, or `"*"` |
-| `hashParamAny` | string[] | at least one hash param key is present |
-| `selectorExists` | string or string[] | any selector matches in DOM |
-| `selectorNotExists` | string or string[] | none of the selectors match |
-| `pathSegmentAfter` | object | folder name → min segments after it (OR across keys) |
-
----
-
-## `emit` payload
-
-Static key/value pairs sent to the native host as activity `data`. String values support templates:
-
-| Template | Replaced with |
+| Primitive | Example |
 |---|---|
-| `{url}` | full page URL |
-| `{origin}` | page origin |
-| `{path}` | pathname |
+| `literal` | `{ "literal": "Home" }` |
+| `urlParam` | `{ "urlParam": "v" }` |
+| `pathRegex` | `{ "pathRegex": "/watch/(\\d+)", "group": 1 }` |
+| `selectorText` | `{ "selectorText": "h1" }` |
+| `selectorAttr` | `{ "selectorAttr": { "selector": "a", "attr": "href" } }` |
+| `metaContent` | `{ "metaContent": "og:image" }` |
+| `title` | `{ "title": { "stripSuffix": " - YouTube" } }` |
+| `video` | `{ "video": { "selector": "video", "minReadyState": 2 } }` |
+| `coalesce` | `{ "coalesce": [ ... ] }` |
+| `split` | `{ "split": { "source": "{x}", "sep": " • ", "index": 0 } }` |
+| `regexReplace` | `{ "regexReplace": { "source": "{x}", "pattern": "...", "replacement": "" } }` |
+| `template` | `{ "template": "https://i.ytimg.com/vi/{videoId}/mqdefault.jpg" }` |
+| `fetchJson` | `{ "fetchJson": { "url": "...", "credentials": "include", "cacheKey": "k:{id}" } }` |
+| `helper` | `{ "helper": "netflix.buildWatching", "args": { "meta": "{meta}" } }` |
 
-The emitted object must match what your `presence.js` expects.
+### `run` (helper output as full payload)
+
+```json
+{
+  "require": ["meta"],
+  "run": { "helper": "netflix.buildWatching", "args": { "meta": "{meta}" } }
+}
+```
 
 ---
 
-## Example
-
-See [`extension/activities/proton-mail/scraper.json`](../extension/activities/proton-mail/scraper.json).
-
----
-
-## What still needs a new AMO build
+## What needs a new AMO build
 
 | Change | New AMO? |
 |---|---|
-| New remote `scraper.json` on GitHub | No |
-| New `presence.js` on GitHub | No |
-| New `registry.json` entry on GitHub | No |
-| New bundled `content-script.js` | Yes |
-| Engine changes in `_runtime/runner.js` | Yes |
+| New / updated `scraper.json` on GitHub | **No** |
+| New `presence.js` on GitHub | **No** |
+| New `registry.json` entry | **No** |
+| New engine primitive or engine bugfix | **Yes** |
+
+---
+
+## Examples
+
+| Activity | File |
+|---|---|
+| Proton Mail (v1) | [`proton-mail/scraper.json`](../extension/activities/proton-mail/scraper.json) |
+| YouTube | [`youtube/scraper.json`](../extension/activities/youtube/scraper.json) |
+| Reddit | [`reddit/scraper.json`](../extension/activities/reddit/scraper.json) |
+| Netflix | [`netflix/scraper.json`](../extension/activities/netflix/scraper.json) |
+
+Validate locally: `npm run validate:scrapers`

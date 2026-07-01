@@ -1,9 +1,13 @@
 {
   "manifest_version": 2,
   "name": "Syncr",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "Display what you're doing in Firefox as Discord Rich Presence.",
   "author": "Syncr Contributors",
+
+  "syncr": {
+    "engineVersion": "2.0.0"
+  },
 
   "icons": {
     "48": "icons/icon.svg",
@@ -31,27 +35,17 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["activities/_runtime/universal.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["*://music.youtube.com/*"],
-      "js": ["activities/youtube-music/content-script.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["*://www.youtube.com/*"],
-      "js": ["activities/youtube/content-script.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["*://www.reddit.com/*", "*://old.reddit.com/*"],
-      "js": ["activities/reddit/content-script.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["*://www.netflix.com/*"],
-      "js": ["activities/netflix/content-script.js"],
+      "js": [
+        "activities/_runtime/engine/context.js",
+        "activities/_runtime/engine/when.js",
+        "activities/_runtime/engine/emit.js",
+        "activities/_runtime/engine/change-detection.js",
+        "activities/_runtime/engine/helpers.js",
+        "activities/_runtime/engine/fetch.js",
+        "activities/_runtime/engine/extract.js",
+        "activities/_runtime/engine/evaluate.js",
+        "activities/_runtime/universal.js"
+      ],
       "run_at": "document_idle"
     }
   ],

@@ -24,7 +24,7 @@ Open the Syncr popup to see what's currently being transmitted, search through a
 | **Proton Mail** | A generic "checking mail" status with no subjects, senders, or personal content |
 | **Netflix** | Browsing and search status, title pages, and playback with season, episode, artwork, and a progress bar |
 
-New activities are added over time. The popup picks them up automatically from GitHub. Host-side presence files hot-update without a full reinstall. Simple new activities ship as `scraper.json` on GitHub and only need you to allow site access in the popup (extension v1.0.13+).
+New activities are added over time. The popup picks them up automatically from GitHub. The extension ships the **scraper engine**; activity rules live in `scraper.json` on GitHub and hot-update without a new XPI. Host `presence.js` files hot-update via **Check for updates**.
 
 ---
 
@@ -55,7 +55,7 @@ Syncr is split into two layers. Both are required for an activity to work end-to
 Firefox tab
     │
     ▼
-content-script.js          scrapes the page (runs in the site)
+universal.js + engine v2    resolves URL, runs scraper.json rules
     │
     ▼
 background.js              picks which activity transmits, forwards to host
@@ -69,8 +69,9 @@ Discord desktop            Rich Presence on your profile
 
 | Layer | Location | What it does |
 |---|---|---|
-| **Extension** | `extension/activities/{id}/` | Injects a content script on matching URLs, scrapes page data, sends `{ activityId, data }` to the background script |
-| **Native host** | `native-host/activities/{id}/presence.js` | Receives scraped data, maps it to a Discord activity via the Syncr SDK, sends it over Discord IPC |
+| **Extension engine** | `extension/activities/_runtime/engine/` | Universal host + declarative scraper interpreter (ships in XPI) |
+| **Activity rules** | `extension/activities/{id}/scraper.json` on GitHub | URL/DOM/fetch rules; hot-updates without a new XPI (engine v2.0.0+) |
+| **Native host** | `native-host/activities/{id}/presence.js` | Maps scraped data to Discord presence via the Syncr SDK |
 
 The popup loads the activity list from `extension/activities/registry.json` on GitHub (merged with whatever is bundled in the installed extension). The host hot-updates `presence.js` files from GitHub when users click **Check for updates**.
 

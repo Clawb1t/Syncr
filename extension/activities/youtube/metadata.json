@@ -1,15 +1,16 @@
-{
-  "id":           "youtube",
-  "name":         "YouTube",
-  "description":  "Tracks videos on youtube.com",
-  "category":     "Video",
-  "icon":         "▶️",
-  "logo":         "logo.png",
-  "version":      "1.0.0",
-  "author":       "Syncr Contributors",
-  "urlPattern":   "*://www.youtube.com/*",
-  "origins":      ["*://www.youtube.com/*"],
-  "scraper":      "bundled",
-  "buttonLabel":  "Watch on YouTube",
-  "activityType": "WATCHING"
-}
+{
+  "id":           "youtube",
+  "name":         "YouTube",
+  "description":  "Tracks videos on youtube.com",
+  "category":     "Video",
+  "icon":         "▶️",
+  "logo":         "logo.png",
+  "version":      "1.0.0",
+  "author":       "Syncr Contributors",
+  "urlPattern":   "*://www.youtube.com/*",
+  "origins":      ["*://www.youtube.com/*", "*://www.youtube.com"],
+  "scraper":      "remote",
+  "minEngineVersion": "2.0.0",
+  "buttonLabel":  "Watch on YouTube",
+  "activityType": "WATCHING"
+}

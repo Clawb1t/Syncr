@@ -1,0 +1,77 @@
+{
+  "version": 2,
+  "pollMs": 2000,
+  "changeDetection": {
+    "seekThreshold": 5,
+    "alwaysSendOn": ["mode", "browsingContext", "searchQuery"],
+    "compareFields": ["title", "mediaType", "seasonNumber", "episodeNumber", "episodeTitle", "paused"],
+    "playbackFields": { "time": "currentTime", "paused": "paused" }
+  },
+  "rules": [
+    {
+      "when": { "pathIncludes": "/search" },
+      "extract": {
+        "searchQuery": {
+          "coalesce": [
+            { "urlParam": "q" },
+            { "urlParam": "query" },
+            { "urlParam": "keyword" }
+          ]
+        }
+      },
+      "require": ["searchQuery"],
+      "emit": { "mode": "search", "searchQuery": "{searchQuery}" }
+    },
+    {
+      "when": { "pathRegex": "/watch/(\\d+)" },
+      "extract": {
+        "movieId": { "pathRegex": "/watch/(\\d+)", "group": 1 },
+        "meta": {
+          "fetchJson": {
+            "url": "https://www.netflix.com/nq/website/memberapi/release/metadata?movieid={movieId}",
+            "credentials": "include",
+            "cacheKey": "meta:{movieId}",
+            "ttlMs": 300000
+          }
+        }
+      },
+      "require": ["meta"],
+      "run": { "helper": "netflix.buildWatching", "args": { "meta": "{meta}" } }
+    },
+    {
+      "when": {
+        "any": [
+          { "pathRegex": "/title/(\\d+)" },
+          { "urlParamExists": "jbv" }
+        ]
+      },
+      "extract": {
+        "movieId": {
+          "coalesce": [
+            { "pathRegex": "/title/(\\d+)", "group": 1 },
+            { "urlParam": "jbv" }
+          ]
+        },
+        "meta": {
+          "fetchJson": {
+            "url": "https://www.netflix.com/nq/website/memberapi/release/metadata?movieid={movieId}",
+            "credentials": "include",
+            "cacheKey": "meta:{movieId}",
+            "ttlMs": 300000
+          }
+        }
+      },
+      "require": ["meta"],
+      "run": { "helper": "netflix.buildPreview", "args": { "meta": "{meta}" } }
+    },
+    {
+      "extract": {
+        "browsingContext": { "helper": "netflix.browsingContext" }
+      },
+      "emit": { "mode": "browsing", "browsing": true, "browsingContext": "{browsingContext}" }
+    }
+  ],
+  "default": {
+    "emit": { "mode": "browsing", "browsing": true, "browsingContext": "Netflix" }
+  }
+}

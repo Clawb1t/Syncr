@@ -160,7 +160,7 @@ Locked activities show why (extension update vs host update) and link to the fix
 3. The universal host fetches `scraper.json` from GitHub (bundle fallback) and runs the declarative engine.
 4. New remote activities only need GitHub files: registry entry, `metadata.json`, `scraper.json`, and host `presence.js`. No new XPI for site rules.
 
-See [`docs/scraper-schema.md`](scraper-schema.md).
+See [`docs/scraper-schema.md`](scraper-schema.md) (v1, current) and [`docs/scraper-engine-v2-spec.md`](scraper-engine-v2-spec.md) (v2 target: all activities remote, no per-site XPI).
 
 ### Updates panel
 

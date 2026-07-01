@@ -1,0 +1,61 @@
+{
+  "version": 2,
+  "pollMs": 2000,
+  "events": ["yt-navigate-finish"],
+  "changeDetection": {
+    "seekThreshold": 5,
+    "compareFields": ["title", "channelName", "paused"],
+    "playbackFields": { "time": "currentTime", "paused": "paused" }
+  },
+  "rules": [
+    {
+      "when": { "not": { "pathIncludes": "/watch" } },
+      "emit": { "browsing": true }
+    },
+    {
+      "when": { "pathIncludes": "/watch" },
+      "require": ["playback"],
+      "extract": {
+        "videoId": { "urlParam": "v" },
+        "title": {
+          "coalesce": [
+            { "selectorText": "h1.ytd-watch-metadata yt-formatted-string" },
+            { "selectorText": "ytd-watch-metadata h1 yt-formatted-string" },
+            { "selectorText": "#above-the-fold #title h1" },
+            { "title": { "stripSuffix": " - YouTube" } },
+            { "literal": "Unknown Video" }
+          ]
+        },
+        "channelName": {
+          "coalesce": [
+            { "selectorText": "ytd-channel-name a" },
+            { "selectorText": "#channel-name a" },
+            { "selectorText": "#owner #channel-name a" }
+          ]
+        },
+        "channelUrl": {
+          "selectorAttr": {
+            "selector": "ytd-channel-name a, #channel-name a, #owner #channel-name a",
+            "attr": "href",
+            "stripQuery": true
+          }
+        },
+        "thumbnailUrl": { "template": "https://i.ytimg.com/vi/{videoId}/mqdefault.jpg" },
+        "playback": {
+          "video": { "selector": "video.html5-main-video, video", "minReadyState": 2 }
+        }
+      },
+      "emit": {
+        "title": "{title}",
+        "channelName": "{channelName}",
+        "channelUrl": "{channelUrl}",
+        "thumbnailUrl": "{thumbnailUrl}",
+        "currentTime": "{playback.currentTime}",
+        "duration": "{playback.duration}",
+        "paused": "{playback.paused}",
+        "pageUrl": "{url}"
+      }
+    }
+  ],
+  "default": { "emit": { "browsing": true } }
+}

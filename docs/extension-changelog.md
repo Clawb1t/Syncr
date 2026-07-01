@@ -8,7 +8,22 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Version history
 
-### 1.0.19 (current)
+### 1.0.20 (current)
+
+**Scraper Engine v2 — all activities are GitHub-only**
+
+- **Engine v2.0.0** (`extension/activities/_runtime/engine/`): declarative extractors, profiles, video timing, `fetchJson`, change detection, Netflix helpers.
+- **Migrated to remote `scraper.json`:** YouTube, YouTube Music, Reddit, Netflix (no bundled `content-script.js`).
+- **Single universal content script** on all http(s) pages; per-site manifest entries removed.
+- Popup gates activities on `minEngineVersion` vs `manifest.syncr.engineVersion` (not bundled scraper presence).
+- Proton Mail keeps v1 `scraper.json` via compatibility shim.
+- Added `npm run validate:scrapers` and `npm run test:engine`.
+
+**After updating:** reload the extension. New activities only need GitHub files (`registry.json`, `metadata.json`, `scraper.json`, `presence.js`).
+
+---
+
+### 1.0.19
 
 **Hotfix: remote URL matching was completely broken**
 

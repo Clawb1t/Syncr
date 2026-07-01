@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "pollMs": 2000,
+  "events": ["yt-navigate-finish"],
+  "changeDetection": {
+    "seekThreshold": 5,
+    "compareFields": ["title", "artist", "paused", "albumArt"],
+    "playbackFields": { "time": "currentTime", "paused": "paused" }
+  },
+  "rules": [
+    {
+      "extract": {
+        "title": { "selectorText": ".title.ytmusic-player-bar" },
+        "subtitle": { "selectorText": ".subtitle.ytmusic-player-bar" },
+        "artist": { "split": { "source": "{subtitle}", "sep": " • ", "index": 0 } },
+        "album": { "split": { "source": "{subtitle}", "sep": " • ", "index": 1 } },
+        "albumArtRaw": { "selectorAttr": { "selector": "img.ytmusic-player-bar", "attr": "src" } },
+        "albumArt": {
+          "regexReplace": {
+            "source": "{albumArtRaw}",
+            "pattern": "=w\\d+-h\\d+.*$",
+            "replacement": "=w500-h500"
+          }
+        },
+        "playback": { "video": { "selector": "video", "minReadyState": 2 } }
+      },
+      "require": ["title", "playback"],
+      "emit": {
+        "title": "{title}",
+        "artist": "{artist}",
+        "album": "{album}",
+        "albumArt": "{albumArt}",
+        "currentTime": "{playback.currentTime}",
+        "duration": "{playback.duration}",
+        "paused": "{playback.paused}",
+        "pageUrl": "{url}"
+      }
+    }
+  ],
+  "fallback": {
+    "emit": { "browsing": true }
+  },
+  "default": { "emit": { "browsing": true } }
+}
