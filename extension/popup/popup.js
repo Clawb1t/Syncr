@@ -7,8 +7,11 @@
 const GITHUB_RAW         = 'https://raw.githubusercontent.com/Clawb1t/Syncr/main';
 const GITHUB_API         = 'https://api.github.com/repos/Clawb1t/Syncr';
 const RELEASES_URL       = 'https://github.com/Clawb1t/Syncr/releases/latest';
-const REGISTRY_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const REGISTRY_CACHE_TTL = 5 * 60 * 1000; // soft cache — always revalidates in background
 const EXT_VERSION        = browser.runtime.getManifest().version;
+
+let BUNDLED_ACTIVITY_IDS = [];
+let HOST_ACTIVITY_STATUS   = [];
 
 function semverGt(a, b) {
   if (!a || !b) return false;
@@ -19,6 +22,11 @@ function semverGt(a, b) {
     if ((pa[i] ?? 0) < (pb[i] ?? 0)) return false;
   }
   return false;
+}
+
+function semverGte(a, b) {
+  if (!a || !b) return false;
+  return !semverGt(b, a);
 }
 
 async function fetchRemoteUpdateInfo() {
@@ -50,75 +58,174 @@ async function fetchRemoteUpdateInfo() {
 
 let ACTIVITY_META = []; // populated by loadActivityRegistry() on boot
 
-async function loadActivityRegistry() {
-  // Try remote registry (GitHub raw) with 1-hour cache
+async function loadBundledRegistryIds() {
   try {
-    const cached = await browser.storage.local.get('_registryCache').catch(() => ({}));
-    const cache  = cached._registryCache;
+    const reg = await fetch(browser.runtime.getURL('activities/registry.json')).then(r => r.json());
+    return reg.activities ?? [];
+  } catch {
+    return [];
+  }
+}
 
-    let ids;
+async function fetchRemoteRegistryIds() {
+  const controller = new AbortController();
+  const timer      = setTimeout(() => controller.abort(), 8000);
+  try {
+    const reg = await fetch(`${GITHUB_RAW}/extension/activities/registry.json`,
+      { signal: controller.signal, cache: 'no-store' }).then(r => r.ok ? r.json() : null);
+    clearTimeout(timer);
+    return reg?.activities ?? null;
+  } catch {
+    clearTimeout(timer);
+    return null;
+  }
+}
 
-    if (cache && Date.now() - cache.ts < REGISTRY_CACHE_TTL) {
-      // Use cached data — still fast on re-open
-      ACTIVITY_META = cache.metas;
-      return;
-    }
-
-    // Fetch fresh from GitHub (5-second timeout)
-    const controller = new AbortController();
-    const timer      = setTimeout(() => controller.abort(), 5000);
-
-    try {
-      const reg = await fetch(`${GITHUB_RAW}/extension/activities/registry.json`,
-        { signal: controller.signal }).then(r => r.json());
-      clearTimeout(timer);
-      ids = reg.activities ?? reg;
-
-      const metas = await Promise.all(
-        ids.map(id =>
-          fetch(`${GITHUB_RAW}/extension/activities/${id}/metadata.json`)
-            .then(r => r.json())
-            .then(m => {
-              // Attach a resolved logo URL so the popup can use it directly
-              if (m && !m.logoUrl && m.logo) {
-                m.logoUrl = `${GITHUB_RAW}/extension/activities/${id}/${m.logo}`;
-              }
-              return m;
-            })
-            .catch(() => null)
-        )
-      );
-
-      ACTIVITY_META = metas.filter(Boolean);
-
-      // Cache for next open
-      await browser.storage.local.set({ _registryCache: { ts: Date.now(), metas: ACTIVITY_META } })
-        .catch(() => {});
-      return;
-    } catch {
-      clearTimeout(timer);
+async function fetchActivityMeta(id) {
+  try {
+    const m = await fetch(`${GITHUB_RAW}/extension/activities/${id}/metadata.json`, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null);
+    if (m) {
+      if (m.logo && !m.logoUrl) {
+        m.logoUrl = `${GITHUB_RAW}/extension/activities/${id}/${m.logo}`;
+      }
+      return m;
     }
   } catch {}
 
-  // Fall back to local bundle
   try {
-    const regUrl = browser.runtime.getURL('activities/registry.json');
-    const reg    = await fetch(regUrl).then(r => r.json());
-    const ids    = reg.activities ?? reg;
-
-    const metas = await Promise.all(
-      ids.map(id =>
-        fetch(browser.runtime.getURL(`activities/${id}/metadata.json`))
-          .then(r => r.json())
-          .catch(() => null)
-      )
-    );
-
-    ACTIVITY_META = metas.filter(Boolean);
-  } catch (err) {
-    console.error('[Syncr] Failed to load activity registry:', err);
-    ACTIVITY_META = [];
+    return await fetch(browser.runtime.getURL(`activities/${id}/metadata.json`)).then(r => r.json());
+  } catch {
+    return null;
   }
+}
+
+function mergeRegistryIds(remoteIds, bundledIds) {
+  return [...new Set([...(remoteIds ?? []), ...bundledIds])];
+}
+
+function enrichActivityMeta(meta, bundledIds, hostStatus, remoteExtVersion) {
+  const host       = (hostStatus ?? []).find(s => s.id === meta.id);
+  const inBundle   = bundledIds.includes(meta.id);
+  const minExt     = meta.minExtensionVersion;
+  const extOk      = inBundle && (!minExt || semverGte(EXT_VERSION, minExt));
+  const hostReady  = !!(host?.installed && host?.upToDate);
+  const hostKnown  = hostStatus?.length > 0;
+
+  let lockReason = null;
+  let lockAction = null;
+
+  if (!extOk) {
+    const need = minExt && semverGt(minExt, EXT_VERSION) ? minExt : (remoteExtVersion || 'latest');
+    lockReason = `Requires extension v${need}`;
+    lockAction = 'extension';
+  } else if (hostKnown && !hostReady) {
+    lockReason = host?.installed ? 'Host activity update available' : 'Run Check for updates in Updates';
+    lockAction = 'host';
+  }
+
+  return {
+    ...meta,
+    _ready:           extOk && (!hostKnown || hostReady),
+    _extensionReady:  extOk,
+    _hostReady:       hostReady,
+    _hostKnown:       hostKnown,
+    _lockReason:      lockReason,
+    _lockAction:      lockAction,
+  };
+}
+
+function enrichAllMetas(metas, bundledIds, hostStatus, remoteExtVersion) {
+  return metas
+    .filter(Boolean)
+    .map(m => enrichActivityMeta(m, bundledIds, hostStatus, remoteExtVersion));
+}
+
+async function fetchRegistryMetas(allIds, bundledIds) {
+  const metas = await Promise.all(allIds.map(id => fetchActivityMeta(id)));
+  return enrichAllMetas(metas, bundledIds, HOST_ACTIVITY_STATUS, lastRemoteUpdateInfo?.extensionVersion);
+}
+
+async function saveRegistryCache(metas, allIds) {
+  await browser.storage.local.set({
+    _registryCache: {
+      ts:         Date.now(),
+      extVersion: EXT_VERSION,
+      ids:        allIds,
+      metas,
+    },
+  }).catch(() => {});
+}
+
+async function loadActivityRegistry({ background = false } = {}) {
+  const bundledIds = await loadBundledRegistryIds();
+  BUNDLED_ACTIVITY_IDS = bundledIds;
+
+  const cached = await browser.storage.local.get('_registryCache').catch(() => ({}));
+  const cache  = cached._registryCache;
+
+  const cacheValid = cache
+    && cache.extVersion === EXT_VERSION
+    && Array.isArray(cache.metas)
+    && Date.now() - cache.ts < REGISTRY_CACHE_TTL;
+
+  if (!background && cacheValid) {
+    ACTIVITY_META = enrichAllMetas(
+      cache.metas,
+      bundledIds,
+      HOST_ACTIVITY_STATUS,
+      lastRemoteUpdateInfo?.extensionVersion,
+    );
+    refreshRegistryInBackground(bundledIds);
+    return;
+  }
+
+  const remoteIds = await fetchRemoteRegistryIds();
+  const allIds    = mergeRegistryIds(remoteIds, bundledIds);
+  ACTIVITY_META   = await fetchRegistryMetas(allIds, bundledIds);
+  await saveRegistryCache(ACTIVITY_META, allIds);
+}
+
+async function refreshRegistryInBackground(bundledIds) {
+  try {
+    const remoteIds = await fetchRemoteRegistryIds();
+    if (!remoteIds) return;
+
+    const allIds     = mergeRegistryIds(remoteIds, bundledIds);
+    const currentKey = ACTIVITY_META.map(a => a.id).sort().join(',');
+    const newKey     = [...allIds].sort().join(',');
+
+    if (currentKey !== newKey) {
+      ACTIVITY_META = await fetchRegistryMetas(allIds, bundledIds);
+      await saveRegistryCache(ACTIVITY_META, allIds);
+      renderActivities(searchInput?.value || '');
+      return;
+    }
+
+    const before = ACTIVITY_META.map(a => `${a.id}:${a._ready}:${a._lockReason}`).join('|');
+    ACTIVITY_META = enrichAllMetas(
+      ACTIVITY_META,
+      bundledIds,
+      HOST_ACTIVITY_STATUS,
+      lastRemoteUpdateInfo?.extensionVersion,
+    );
+    const after = ACTIVITY_META.map(a => `${a.id}:${a._ready}:${a._lockReason}`).join('|');
+    if (before !== after) renderActivities(searchInput?.value || '');
+  } catch {}
+}
+
+function applyHostActivityStatus(hostStatus) {
+  if (!hostStatus?.length) return false;
+  HOST_ACTIVITY_STATUS = hostStatus;
+  const before = ACTIVITY_META.map(a => `${a.id}:${a._ready}`).join(',');
+  ACTIVITY_META = enrichAllMetas(
+    ACTIVITY_META,
+    BUNDLED_ACTIVITY_IDS,
+    HOST_ACTIVITY_STATUS,
+    lastRemoteUpdateInfo?.extensionVersion,
+  );
+  const after = ACTIVITY_META.map(a => `${a.id}:${a._ready}`).join(',');
+  return before !== after;
 }
 
 // ---------------------------------------------------------------------------
@@ -329,12 +436,31 @@ function renderActivitiesUpdateList(activityStatus) {
   }
 
   list.innerHTML = activityStatus.map(a => {
+    const meta = ACTIVITY_META.find(m => m.id === a.id);
+    const inBundle = BUNDLED_ACTIVITY_IDS.includes(a.id);
     let statusClass = 'muted';
     let statusText  = 'Not installed';
-    if (a.installed && a.upToDate) { statusClass = 'ok'; statusText = 'Up to date'; }
-    else if (a.installed) { statusClass = 'warn'; statusText = 'Update available'; }
+
+    if (!inBundle) {
+      statusClass = 'warn';
+      statusText  = 'Needs extension update';
+    } else if (a.installed && a.upToDate) {
+      statusClass = 'ok';
+      statusText  = 'Up to date';
+    } else if (a.installed) {
+      statusClass = 'warn';
+      statusText  = 'Host update available';
+    } else if (inBundle) {
+      statusClass = 'warn';
+      statusText  = 'Host install needed';
+    }
+
+    const note = !inBundle && meta?.minExtensionVersion
+      ? ` · ext v${meta.minExtensionVersion}+`
+      : '';
+
     return `<div class="updates-activity-row">
-      <span class="updates-activity-name">${esc(activityDisplayName(a.id))}</span>
+      <span class="updates-activity-name">${esc(activityDisplayName(a.id))}${note}</span>
       <span class="update-badge ${statusClass}">${statusText}</span>
     </div>`;
   }).join('');
@@ -458,10 +584,16 @@ async function runUpdateCheck(apply = true) {
  */
 function getActivityTitle(data) {
   if (!data) return null;
-  if (data.browsing) return { title: 'Browsing…', sub: null };
+  if (data.browsing) {
+    const ctx = data.browsingContext && data.browsingContext !== 'Home'
+      ? data.browsingContext
+      : null;
+    return { title: ctx ? `Browsing ${ctx}` : 'Browsing…', sub: null };
+  }
   if (!data.title) return null;
   const sub = data.artist      ? `by ${data.artist}`
             : data.channelName ? `by ${data.channelName}`
+            : data.author      ? `${data.subreddit || 'Reddit'} · u/${String(data.author).replace(/^u\//, '')}`
             : null;
   return { title: data.title, sub };
 }
@@ -571,6 +703,11 @@ function renderActivities(filter = '') {
   activitiesList.querySelectorAll('.toggle input').forEach(input => {
     input.addEventListener('change', async e => {
       const id      = e.target.dataset.id;
+      const meta    = ACTIVITY_META.find(a => a.id === id);
+      if (meta && !meta._ready) {
+        e.target.checked = false;
+        return;
+      }
       const enabled = e.target.checked;
       const card    = activitiesList.querySelector(`.activity-card[data-id="${id}"]`);
       if (card) card.classList.toggle('is-disabled', !enabled);
@@ -578,30 +715,64 @@ function renderActivities(filter = '') {
       if (!enabled) renderNowPlaying(null, null);
     });
   });
+
+  activitiesList.querySelectorAll('[data-update-host]').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.preventDefault();
+      openUpdatesPanel();
+      await runUpdateCheck(true);
+    });
+  });
+
+  activitiesList.querySelectorAll('[data-update-ext]').forEach(link => {
+    link.addEventListener('click', e => {
+      if (!link.href || link.href === '#') {
+        e.preventDefault();
+        browser.tabs.create({ url: RELEASES_URL });
+      }
+    });
+  });
 }
 
 function buildCard(meta) {
   const isActive  = !!(currentState.liveActivities?.[meta.id]);
-  const isEnabled = !disabledActivities.has(meta.id);
+  const isEnabled = meta._ready && !disabledActivities.has(meta.id);
+  const isLocked  = !meta._ready;
   const imgUrl    = resolveActivityImage(meta);
 
   const logoInner = imgUrl
     ? `<img src="${esc(imgUrl)}" alt="${esc(meta.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:5px" />`
     : `<span style="font-size:20px;line-height:1">${esc(meta.icon || '🔌')}</span>`;
 
+  let tagText = isActive ? 'Live' : esc(meta.category || '');
+  if (isLocked) tagText = 'Update needed';
+
+  let updateHint = '';
+  if (isLocked && meta._lockReason) {
+    if (meta._lockAction === 'extension') {
+      const xpiUrl = lastRemoteUpdateInfo?.downloads?.xpi || RELEASES_URL;
+      updateHint = `<div class="ac-update-hint">${esc(meta._lockReason)} · <a class="ac-update-link" data-update-ext href="${esc(xpiUrl)}" target="_blank" rel="noopener">Get extension update</a></div>`;
+    } else if (meta._lockAction === 'host') {
+      updateHint = `<div class="ac-update-hint">${esc(meta._lockReason)} · <button type="button" class="ac-update-link" data-update-host="${esc(meta.id)}">Update host activity</button></div>`;
+    } else {
+      updateHint = `<div class="ac-update-hint">${esc(meta._lockReason)}</div>`;
+    }
+  }
+
   return `
-    <div class="activity-card ${isActive ? 'active-now' : ''} ${!isEnabled ? 'is-disabled' : ''}" data-id="${esc(meta.id)}">
+    <div class="activity-card ${isActive ? 'active-now' : ''} ${!isEnabled ? 'is-disabled' : ''} ${isLocked ? 'is-locked' : ''}" data-id="${esc(meta.id)}">
       <div class="ac-logo">${logoInner}</div>
       <div class="ac-body">
         <div class="ac-name-row">
           <span class="ac-name">${esc(meta.name)}</span>
-          <span class="ac-tag">${isActive ? 'Live' : esc(meta.category || '')}</span>
+          <span class="ac-tag ${isLocked ? 'ac-tag-warn' : ''}">${tagText}</span>
         </div>
         <div class="ac-desc">${esc(meta.description || '')}</div>
+        ${updateHint}
       </div>
       <div class="toggle-wrap">
-        <label class="toggle" title="${isEnabled ? 'Disable' : 'Enable'} ${esc(meta.name)}">
-          <input type="checkbox" ${isEnabled ? 'checked' : ''} data-id="${esc(meta.id)}" />
+        <label class="toggle" title="${isLocked ? esc(meta._lockReason) : (isEnabled ? 'Disable' : 'Enable') + ' ' + esc(meta.name)}">
+          <input type="checkbox" ${isEnabled ? 'checked' : ''} ${isLocked ? 'disabled' : ''} data-id="${esc(meta.id)}" />
           <div class="toggle-track"></div>
           <div class="toggle-thumb"></div>
         </label>
@@ -686,6 +857,9 @@ async function syncState() {
     const state = await browser.runtime.sendMessage({ type: 'popup:getState' });
     if (!state) return;
     currentState = state;
+
+    applyHostActivityStatus(state.updateInfo?.activityStatus ?? []);
+
     setStatus(state.connected ? 'connected' : 'disconnected', state.connected ? null : state.lastError);
     renderUpdateBanner(state.updateInfo ?? null);
     if (updatesPanelOpen) {
@@ -705,10 +879,17 @@ async function syncState() {
 setStatus('connecting');
 
 (async () => {
-  await Promise.all([loadActivityRegistry(), loadDisabled()]);
+  await Promise.all([loadDisabled(), loadActivityRegistry()]);
   $('s-ext-version').textContent = EXT_VERSION;
   renderActivities();
   await syncState();
+
+  // Refresh remote registry + apply host activity hot-updates without full Setup
+  lastRemoteUpdateInfo = await fetchRemoteUpdateInfo().catch(() => null);
+  refreshRegistryInBackground(BUNDLED_ACTIVITY_IDS);
+  if (currentState.connected) {
+    runUpdateCheck(true).catch(() => {});
+  }
 })();
 
 const pollInterval = setInterval(syncState, 1000);

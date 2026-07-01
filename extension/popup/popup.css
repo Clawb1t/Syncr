@@ -462,6 +462,51 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.24); }
 /* Dim card when disabled */
 .activity-card.is-disabled { opacity: .45; }
 
+/* Locked until extension/host requirements are met */
+.activity-card.is-locked {
+  opacity: .72;
+  background: rgba(255, 180, 60, .04);
+}
+.activity-card.is-locked::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px;
+  width: 2px;
+  background: #e8a317;
+  border-radius: 0 2px 2px 0;
+}
+
+.ac-tag-warn {
+  color: #e8a317 !important;
+  background: rgba(232, 163, 23, .12) !important;
+  border-color: rgba(232, 163, 23, .28) !important;
+}
+
+.ac-update-hint {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-3);
+  line-height: 1.35;
+}
+
+.ac-update-link {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ac-update-link:hover { color: #7b86ff; }
+
+.activity-card.is-locked .toggle { opacity: .35; cursor: not-allowed; }
+.activity-card.is-locked .toggle input:disabled + .toggle-track { cursor: not-allowed; }
+
 /* Logo */
 .ac-logo {
   width: 38px; height: 38px;

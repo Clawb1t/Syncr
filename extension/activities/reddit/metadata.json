@@ -1,10 +1,11 @@
 {
+  "minExtensionVersion": "1.0.9",
   "id":           "reddit",
   "name":         "Reddit",
   "description":  "Tracks posts and browsing on reddit.com",
   "category":     "Social",
   "icon":         "🔴",
-  "logo":         "logo.svg",
+  "logo":         "logo.png",
   "version":      "1.0.0",
   "author":       "Syncr Contributors",
   "urlPattern":   "*://www.reddit.com/*",
