@@ -1,4 +1,4 @@
 {
   "_comment": "List of installed activity IDs. Future: swap for remote source e.g. https://raw.githubusercontent.com/your-org/syncr-activities/main/registry.json",
-  "activities": ["youtube-music", "youtube", "reddit"]
+  "activities": ["youtube-music", "youtube", "reddit", "proton-mail"]
 }

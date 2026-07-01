@@ -1,0 +1,15 @@
+{
+  "id":                   "proton-mail",
+  "name":                 "Proton Mail",
+  "description":          "Generic mail activity — no subjects, senders, or personal data",
+  "category":             "Productivity",
+  "icon":                 "✉️",
+  "logo":                 "logo.svg",
+  "version":              "1.0.0",
+  "author":               "Syncr Contributors",
+  "urlPattern":           "*://mail.proton.me/*",
+  "buttonLabel":          "Open Proton Mail",
+  "activityType":         "WATCHING",
+  "minExtensionVersion":  "1.0.11",
+  "privacy":              true
+}

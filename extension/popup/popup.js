@@ -590,6 +590,7 @@ function getActivityTitle(data) {
       : null;
     return { title: ctx ? `Browsing ${ctx}` : 'Browsing…', sub: null };
   }
+  if (data.context) return { title: data.context, sub: null };
   if (!data.title) return null;
   const sub = data.artist      ? `by ${data.artist}`
             : data.channelName ? `by ${data.channelName}`

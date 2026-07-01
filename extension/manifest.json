@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Syncr",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Display what you're doing in Firefox as Discord Rich Presence.",
   "author": "Syncr Contributors",
 
@@ -42,6 +42,11 @@
     {
       "matches": ["*://www.reddit.com/*", "*://old.reddit.com/*"],
       "js": ["activities/reddit/content-script.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://mail.proton.me/*", "*://mail.protonmail.com/*"],
+      "js": ["activities/proton-mail/content-script.js"],
       "run_at": "document_idle"
     }
   ],
