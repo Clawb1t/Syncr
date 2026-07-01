@@ -23,6 +23,7 @@ Open the Syncr popup to see what's currently being transmitted, search through a
 | **Reddit** | Post titles, subreddits, scores, and browsing context, or a general browsing status on feeds and profiles |
 | **Proton Mail** | A generic "checking mail" status with no subjects, senders, or personal content |
 | **Netflix** | Browsing and search status, title pages, and playback with season, episode, artwork, and a progress bar |
+| **GitHub** | Repositories, issues, pull requests, files, profiles, gists, search, and more |
 
 New activities are added over time. The popup picks them up automatically from GitHub. The extension ships the **scraper engine**; activity rules live in `scraper.json` on GitHub and hot-update without a new XPI. Host `presence.js` files hot-update via **Check for updates**.
 

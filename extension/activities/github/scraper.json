@@ -1,0 +1,515 @@
+{
+  "version": 2,
+  "pollMs": 2000,
+  "changeDetection": {
+    "compareFields": ["mode", "details", "state", "repoFull"]
+  },
+  "profiles": [
+    {
+      "id": "gist",
+      "when": { "hostnameIncludes": "gist.github.com" },
+      "rules": [
+        {
+          "when": { "pathRegex": "^/$" },
+          "emit": { "mode": "creating_gist", "details": "Creating a GitHub gist", "pageUrl": "{url}" }
+        },
+        {
+          "when": { "pathIncludes": "/discover" },
+          "emit": { "mode": "browsing", "details": "Browsing GitHub gists", "pageUrl": "{url}" }
+        },
+        {
+          "when": { "pathIncludes": "/forked" },
+          "emit": { "mode": "browsing", "details": "Browsing forked GitHub gists", "pageUrl": "{url}" }
+        },
+        {
+          "when": { "pathIncludes": "/starred" },
+          "emit": { "mode": "browsing", "details": "Browsing starred GitHub gists", "pageUrl": "{url}" }
+        },
+        {
+          "when": { "selectorExists": [".gist-content", ".repository-content.gist-content"] },
+          "extract": {
+            "gistOwner": { "pathRegex": "^/([^/]+)", "group": 1 },
+            "gistName": {
+              "coalesce": [
+                { "selectorText": "[itemprop='name'] a" },
+                { "selectorText": ".gisthead .gist-header-title a" }
+              ]
+            }
+          },
+          "require": ["gistOwner"],
+          "emit": {
+            "mode": "viewing_gist",
+            "details": "Browsing gist",
+            "state": "{gistName} by {gistOwner}",
+            "gistOwner": "{gistOwner}",
+            "gistName": "{gistName}",
+            "pageUrl": "{url}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "repo",
+      "when": { "selectorExists": ["#repository-container-header", "div#repository-container-header"] },
+      "rules": [
+        {
+          "when": { "pathIncludes": "/issues/new" },
+          "extract": {
+            "owner": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 1 },
+            "repo": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 2 },
+            "repoFull": { "template": "{owner}/{repo}" },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "template": "https://avatars.githubusercontent.com/u/{userId}" }
+              ]
+            },
+            "userId": { "selectorAttr": { "selector": "meta[name=\"octolytics-dimension-user_id\"]", "attr": "content" } }
+          },
+          "require": ["repoFull"],
+          "emit": {
+            "mode": "creating_issue",
+            "details": "Creating an issue in {repoFull}",
+            "repoFull": "{repoFull}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "when": { "pathRegex": "/issues/\\d+" },
+          "extract": {
+            "owner": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 1 },
+            "repo": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 2 },
+            "repoFull": { "template": "{owner}/{repo}" },
+            "issueNum": { "pathRegex": "/issues/(\\d+)", "group": 1 },
+            "issueTitle": {
+              "coalesce": [
+                { "selectorText": "bdi[data-testid=\"issue-title\"]" },
+                { "selectorText": ".js-issue-title" },
+                { "selectorText": "h1.gh-header-title" }
+              ]
+            },
+            "issueAuthor": {
+              "coalesce": [
+                { "selectorText": "[data-testid=\"issue-body-header-author\"]" },
+                { "selectorText": ".author[data-hovercard-type=\"user\"]" },
+                { "selectorText": "a.author" }
+              ]
+            },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "template": "https://avatars.githubusercontent.com/u/{userId}" }
+              ]
+            },
+            "userId": { "selectorAttr": { "selector": "meta[name=\"octolytics-dimension-user_id\"]", "attr": "content" } }
+          },
+          "require": ["issueNum"],
+          "emit": {
+            "mode": "viewing_issue",
+            "details": "Looking at issue #{issueNum}",
+            "state": "{issueAuthor} - {issueTitle}",
+            "repoFull": "{repoFull}",
+            "issueNum": "{issueNum}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "when": { "pathIncludes": "/issues" },
+          "extract": {
+            "owner": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 1 },
+            "repo": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 2 },
+            "repoFull": { "template": "{owner}/{repo}" },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "template": "https://avatars.githubusercontent.com/u/{userId}" }
+              ]
+            },
+            "userId": { "selectorAttr": { "selector": "meta[name=\"octolytics-dimension-user_id\"]", "attr": "content" } }
+          },
+          "require": ["repoFull"],
+          "emit": {
+            "mode": "browsing_issues",
+            "details": "Browsing issues",
+            "state": "{repoFull}",
+            "repoFull": "{repoFull}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "when": { "pathRegex": "/pull/\\d+" },
+          "extract": {
+            "owner": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 1 },
+            "repo": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 2 },
+            "repoFull": { "template": "{owner}/{repo}" },
+            "prNum": { "pathRegex": "/pull/(\\d+)", "group": 1 },
+            "prTitle": {
+              "coalesce": [
+                { "selectorText": "h1.gh-header-title" },
+                { "selectorText": "[href=\"#top\"]" },
+                { "selectorText": ".js-issue-title" }
+              ]
+            },
+            "prAuthor": {
+              "coalesce": [
+                { "selectorText": "a.author.Link--primary" },
+                { "selectorText": "a.author" },
+                { "selectorText": "[class*=\"author Link\"]" }
+              ]
+            },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "template": "https://avatars.githubusercontent.com/u/{userId}" }
+              ]
+            },
+            "userId": { "selectorAttr": { "selector": "meta[name=\"octolytics-dimension-user_id\"]", "attr": "content" } }
+          },
+          "require": ["prNum"],
+          "emit": {
+            "mode": "viewing_pr",
+            "details": "Looking at pull request #{prNum}",
+            "state": "{prAuthor} - {prTitle}",
+            "repoFull": "{repoFull}",
+            "prNum": "{prNum}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "when": { "pathIncludes": "/pulls" },
+          "extract": {
+            "owner": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 1 },
+            "repo": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 2 },
+            "repoFull": { "template": "{owner}/{repo}" },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "template": "https://avatars.githubusercontent.com/u/{userId}" }
+              ]
+            },
+            "userId": { "selectorAttr": { "selector": "meta[name=\"octolytics-dimension-user_id\"]", "attr": "content" } }
+          },
+          "require": ["repoFull"],
+          "emit": {
+            "mode": "browsing_prs",
+            "details": "Browsing pull requests",
+            "state": "{repoFull}",
+            "repoFull": "{repoFull}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "when": { "pathRegex": "/discussions/\\d+" },
+          "extract": {
+            "owner": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 1 },
+            "repo": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 2 },
+            "repoFull": { "template": "{owner}/{repo}" },
+            "discussionNum": { "pathRegex": "/discussions/(\\d+)", "group": 1 },
+            "discussionTitle": {
+              "coalesce": [
+                { "selectorText": "h1.gh-header-title" },
+                { "selectorText": ".js-discussion-title" }
+              ]
+            },
+            "discussionAuthor": { "selectorText": "a.author" },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "template": "https://avatars.githubusercontent.com/u/{userId}" }
+              ]
+            },
+            "userId": { "selectorAttr": { "selector": "meta[name=\"octolytics-dimension-user_id\"]", "attr": "content" } }
+          },
+          "require": ["discussionNum"],
+          "emit": {
+            "mode": "viewing_discussion",
+            "details": "Looking at discussion #{discussionNum}",
+            "state": "{discussionAuthor} - {discussionTitle}",
+            "repoFull": "{repoFull}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "when": { "pathIncludes": "/discussions" },
+          "extract": {
+            "owner": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 1 },
+            "repo": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 2 },
+            "repoFull": { "template": "{owner}/{repo}" },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "template": "https://avatars.githubusercontent.com/u/{userId}" }
+              ]
+            },
+            "userId": { "selectorAttr": { "selector": "meta[name=\"octolytics-dimension-user_id\"]", "attr": "content" } }
+          },
+          "require": ["repoFull"],
+          "emit": {
+            "mode": "browsing_discussions",
+            "details": "Browsing discussions in",
+            "state": "{repoFull}",
+            "repoFull": "{repoFull}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "when": { "pathIncludes": "/blob/" },
+          "extract": {
+            "owner": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 1 },
+            "repo": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 2 },
+            "repoFull": { "template": "{owner}/{repo}" },
+            "branch": { "pathRegex": "/blob/([^/]+)/", "group": 1 },
+            "filePath": { "pathRegex": "^/[^/]+/[^/]+/blob/[^/]+/(.+)", "group": 1 },
+            "fileName": {
+              "coalesce": [
+                { "selectorText": "#file-name-id" },
+                { "selectorText": ".final-path" },
+                { "pathRegex": "^/[^/]+/[^/]+/blob/[^/]+/(.+)", "group": 1 }
+              ]
+            },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "template": "https://avatars.githubusercontent.com/u/{userId}" }
+              ]
+            },
+            "userId": { "selectorAttr": { "selector": "meta[name=\"octolytics-dimension-user_id\"]", "attr": "content" } }
+          },
+          "require": ["repoFull"],
+          "emit": {
+            "mode": "viewing_file",
+            "details": "Browsing repository {repoFull}",
+            "state": "Viewing file {fileName} at {branch}",
+            "repoFull": "{repoFull}",
+            "fileName": "{fileName}",
+            "branch": "{branch}",
+            "filePath": "{filePath}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "when": { "pathIncludes": "/tree/" },
+          "extract": {
+            "owner": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 1 },
+            "repo": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 2 },
+            "repoFull": { "template": "{owner}/{repo}" },
+            "folderPath": { "pathRegex": "^/[^/]+/[^/]+/tree/[^/]+/(.+)", "group": 1 },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "template": "https://avatars.githubusercontent.com/u/{userId}" }
+              ]
+            },
+            "userId": { "selectorAttr": { "selector": "meta[name=\"octolytics-dimension-user_id\"]", "attr": "content" } }
+          },
+          "require": ["repoFull"],
+          "emit": {
+            "mode": "browsing_folder",
+            "details": "Browsing repository {repoFull}",
+            "state": "In folder {folderPath}",
+            "repoFull": "{repoFull}",
+            "folderPath": "{folderPath}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "when": { "pathRegex": "/(pulse|graphs|community|network)/" },
+          "extract": {
+            "owner": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 1 },
+            "repo": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 2 },
+            "repoFull": { "template": "{owner}/{repo}" },
+            "insightTab": {
+              "coalesce": [
+                { "selectorText": "nav a.js-selected-navigation-item.selected" },
+                { "selectorText": ".UnderlineNav-item.selected" },
+                { "selectorText": ".selected.menu-item" }
+              ]
+            },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "template": "https://avatars.githubusercontent.com/u/{userId}" }
+              ]
+            },
+            "userId": { "selectorAttr": { "selector": "meta[name=\"octolytics-dimension-user_id\"]", "attr": "content" } }
+          },
+          "require": ["repoFull"],
+          "emit": {
+            "mode": "browsing_insights",
+            "details": "Browsing insights of {repoFull}",
+            "state": "{insightTab}",
+            "repoFull": "{repoFull}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "extract": {
+            "owner": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 1 },
+            "repo": { "pathRegex": "^/([^/]+)/([^/]+)", "group": 2 },
+            "repoFull": { "template": "{owner}/{repo}" },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "template": "https://avatars.githubusercontent.com/u/{userId}" }
+              ]
+            },
+            "userId": { "selectorAttr": { "selector": "meta[name=\"octolytics-dimension-user_id\"]", "attr": "content" } }
+          },
+          "require": ["repoFull"],
+          "emit": {
+            "mode": "browsing_repo",
+            "details": "Browsing repository",
+            "state": "{repoFull}",
+            "repoFull": "{repoFull}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "profile",
+      "when": {
+        "any": [
+          { "selectorExists": ["body.page-profile"] },
+          { "selectorExists": [".js-profile-editable-replace"] }
+        ]
+      },
+      "rules": [
+        {
+          "extract": {
+            "profileNameRaw": { "selectorText": "span.p-nickname" },
+            "profileName": {
+              "coalesce": [
+                {
+                  "regexReplace": {
+                    "source": "{profileNameRaw}",
+                    "pattern": "\\s*·.*$",
+                    "replacement": ""
+                  }
+                },
+                { "pathRegex": "^/([^/]+)", "group": 1 }
+              ]
+            },
+            "profileTab": { "urlParam": "tab" },
+            "avatarUrl": {
+              "coalesce": [
+                { "selectorAttr": { "selector": "img.avatar-user", "attr": "src", "stripQuery": true } },
+                { "selectorAttr": { "selector": "img.avatar.avatar-user", "attr": "src", "stripQuery": true } }
+              ]
+            }
+          },
+          "require": ["profileName"],
+          "emit": {
+            "mode": "viewing_profile",
+            "details": "Viewing {profileName}'s profile",
+            "state": "{profileTab}",
+            "profileName": "{profileName}",
+            "profileTab": "{profileTab}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "org",
+      "when": { "selectorExists": ["meta[name=\"hovercard-subject-tag\"]"] },
+      "rules": [
+        {
+          "extract": {
+            "orgTitle": { "title": {} },
+            "avatarUrl": {
+              "coalesce": [
+                { "metaContent": "og:image" },
+                { "selectorAttr": { "selector": "img[itemprop=\"image\"].avatar", "attr": "src" } }
+              ]
+            }
+          },
+          "emit": {
+            "mode": "viewing_org",
+            "details": "Viewing an organization",
+            "state": "{orgTitle}",
+            "avatarUrl": "{avatarUrl}",
+            "pageUrl": "{url}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "github-global",
+      "when": { "hostnameIncludes": "github.com" },
+      "rules": [
+        { "when": { "pathIncludes": "/login" }, "emit": { "mode": "browsing", "details": "Logging in", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/settings" }, "emit": { "mode": "browsing", "details": "Viewing settings", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/notifications/subscriptions" }, "emit": { "mode": "browsing", "details": "Viewing subscriptions", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/notifications" }, "emit": { "mode": "browsing", "details": "Viewing notifications", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/explore" }, "emit": { "mode": "browsing", "details": "Browsing repositories", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/discover" }, "emit": { "mode": "browsing", "details": "Browsing repositories", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/marketplace" }, "emit": { "mode": "browsing", "details": "Browsing marketplace", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/watching" }, "emit": { "mode": "browsing", "details": "Browsing interested repositories", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/new/import" }, "emit": { "mode": "browsing", "details": "Importing a repository", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/new/project" }, "emit": { "mode": "browsing", "details": "Creating a project", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/organization/new" }, "emit": { "mode": "browsing", "details": "Creating an organization", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/new" }, "emit": { "mode": "browsing", "details": "Creating a repository", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/topics" }, "emit": { "mode": "browsing", "details": "Browsing topics", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/trending/developers" }, "emit": { "mode": "browsing", "details": "Browsing trending developers", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/trending" }, "emit": { "mode": "browsing", "details": "Browsing trending repositories", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/collections" }, "emit": { "mode": "browsing", "details": "Browsing collections", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/events" }, "emit": { "mode": "browsing", "details": "Browsing events", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/codespaces" }, "emit": { "mode": "browsing", "details": "Browsing codespaces", "pageUrl": "{url}" } },
+        {
+          "when": { "pathIncludes": "/search" },
+          "extract": { "searchQuery": { "urlParam": "q" } },
+          "emit": {
+            "mode": "searching",
+            "details": "Searching for",
+            "state": "{searchQuery}",
+            "searchQuery": "{searchQuery}",
+            "pageUrl": "{url}"
+          }
+        },
+        {
+          "when": { "pathIncludes": "/features/copilot" },
+          "emit": { "mode": "browsing", "details": "Browsing features", "state": "Looking at GitHub Copilot", "pageUrl": "{url}" }
+        },
+        { "when": { "pathIncludes": "/features" }, "emit": { "mode": "browsing", "details": "Browsing features", "pageUrl": "{url}" } },
+        {
+          "when": { "pathIncludes": "/orgs/" },
+          "extract": {
+            "orgName": { "pathRegex": "^/orgs/([^/]+)", "group": 1 },
+            "orgSection": { "pathRegex": "^/orgs/[^/]+/([^/]+)", "group": 1 }
+          },
+          "require": ["orgName"],
+          "emit": {
+            "mode": "viewing_org_people",
+            "details": "Viewing {orgName}'s {orgSection}",
+            "orgName": "{orgName}",
+            "orgSection": "{orgSection}",
+            "pageUrl": "{url}"
+          }
+        },
+        { "when": { "pathIncludes": "/pulls" }, "emit": { "mode": "browsing", "details": "Viewing pull requests", "pageUrl": "{url}" } },
+        { "when": { "pathIncludes": "/issues" }, "emit": { "mode": "browsing", "details": "Viewing issues", "pageUrl": "{url}" } },
+        { "when": { "pathRegex": "^/?$" }, "emit": { "mode": "browsing", "details": "Viewing the home page", "pageUrl": "{url}" } }
+      ]
+    }
+  ],
+  "default": {
+    "emit": {
+      "mode": "browsing",
+      "details": "Browsing GitHub",
+      "pageUrl": "{url}"
+    }
+  }
+}

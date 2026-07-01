@@ -1,0 +1,21 @@
+{
+  "id":                   "github",
+  "name":                 "GitHub",
+  "description":          "Repositories, issues, pull requests, profiles, and more",
+  "category":             "Development",
+  "icon":                 "🐙",
+  "logo":                 "logo.png",
+  "version":              "1.0.0",
+  "author":               "Syncr Contributors",
+  "urlPattern":           "*://github.com/*",
+  "origins":              [
+    "*://github.com/*",
+    "*://github.com",
+    "*://gist.github.com/*",
+    "*://gist.github.com"
+  ],
+  "scraper":              "remote",
+  "minEngineVersion":     "2.0.0",
+  "buttonLabel":          "Open on GitHub",
+  "activityType":         "WATCHING"
+}

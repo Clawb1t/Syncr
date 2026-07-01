@@ -23,6 +23,7 @@ const cases = [
   { id: 'youtube', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
   { id: 'youtube-music', url: 'https://music.youtube.com/' },
   { id: 'reddit', url: 'https://www.reddit.com/r/test/comments/abc/post' },
+  { id: 'github', url: 'https://github.com/microsoft/vscode' },
   { id: 'netflix', url: 'https://www.netflix.com/browse' },
 ];
 
