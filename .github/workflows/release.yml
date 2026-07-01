@@ -83,8 +83,6 @@ jobs:
           npm run build
 
       - name: Build Syncr Setup
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
         shell: pwsh
         run: |
           $v = (Get-Content extension/manifest.json -Raw | ConvertFrom-Json).version
@@ -92,6 +90,8 @@ jobs:
           $pkg = Get-Content $pkgPath -Raw | ConvertFrom-Json
           $pkg.version = $v
           ($pkg | ConvertTo-Json -Depth 10) + "`n" | Set-Content $pkgPath
+          . ./scripts/configure-win-codesign.ps1
+          Configure-WinCodeSign -Root $PWD
           Push-Location launcher
           npm ci
           npm run build

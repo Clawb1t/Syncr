@@ -4,7 +4,7 @@
 #   .\update.ps1                Full update + GitHub release
 #   .\update.ps1 -PublishOnly   Re-fetch signed XPI from AMO (waits for review), then publish
 #   .\update.ps1 -HostOnly      Host-only update (no extension/AMO) — see below
-#   .\update.ps1 -BuildOnly     Build artifacts only (no git/GitHub)
+#   .\update.ps1 -SetupOnly     Rebuild Syncr Setup (signed if cert available) and upload to latest release
 #
 # Host-only release (native-host/version.json only, no extension bump):
 #   1. Bump native-host/version.json (e.g. 1.0.4)
@@ -23,7 +23,8 @@
 param(
   [switch]$BuildOnly,
   [switch]$PublishOnly,
-  [switch]$HostOnly
+  [switch]$HostOnly,
+  [switch]$SetupOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -283,7 +284,9 @@ function Build-Launcher {
 
   $outputArg = ($buildOutput -replace '\\', '/')
 
-  $env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+  . (Join-Path $root 'scripts\configure-win-codesign.ps1')
+  Configure-WinCodeSign -Root $root
+
   Push-Location (Join-Path $root 'launcher')
   if (-not (Test-Path node_modules)) { npm install } else { npm install --prefer-offline }
 
@@ -356,6 +359,18 @@ function Update-UpdatesJson {
   Write-Step "Updating updates.json"
   node (Join-Path $root 'scripts\update-updates-json.js') $Version (Join-Path $root 'dist\syncr.xpi') (Get-RepoSlug)
   Write-Ok "updates.json patched for v$Version"
+}
+
+function Upload-SetupRelease {
+  param([string]$Version, [string]$Tag, [string]$Repo)
+
+  $setupPath = Get-SetupExePath $Version
+  if (-not (Test-Path $setupPath)) { Write-Err "Missing $setupPath" }
+
+  Write-Step "Uploading Syncr Setup to GitHub release $Tag"
+  node (Join-Path $root 'scripts\upload-release-asset.js') $Tag $Repo $setupPath
+  if ($LASTEXITCODE -ne 0) { Write-Err "Setup upload failed" }
+  Write-Ok "Uploaded $(Split-Path $setupPath -Leaf)"
 }
 
 function Publish-ToGitHub {
@@ -533,8 +548,28 @@ function Publish-HostOnly {
 $script:GitExe = Get-GitExe
 $script:GhExe  = Get-GhExe
 
-if ($HostOnly -and $PublishOnly) {
-  Write-Err "-HostOnly cannot be combined with -PublishOnly"
+if ($HostOnly -and ($PublishOnly -or $SetupOnly)) {
+  Write-Err "-HostOnly cannot be combined with -PublishOnly or -SetupOnly"
+}
+
+if ($SetupOnly) {
+  $manifest = Get-Content (Join-Path $root 'extension\manifest.json') -Raw | ConvertFrom-Json
+  $version  = $manifest.version
+  $tag      = "v$version"
+  $repo     = Get-RepoSlug
+
+  Write-Host ""
+  Write-Host "  Syncr Setup rebuild v$version"
+  Write-Host "  =============================="
+
+  Sync-LauncherVersion $version
+  Build-Launcher -Version $version
+  Upload-SetupRelease -Version $version -Tag $tag -Repo $repo
+
+  Write-Host ""
+  Write-Host "  Done! Syncr Setup uploaded to $tag." -ForegroundColor Green
+  Write-Host ""
+  exit 0
 }
 
 if ($HostOnly) {

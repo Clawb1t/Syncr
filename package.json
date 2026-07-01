@@ -9,6 +9,7 @@
     "test:engine": "node scripts/test-engine.js",
     "update": "powershell -ExecutionPolicy Bypass -File update.ps1",
     "update:host": "powershell -ExecutionPolicy Bypass -File update.ps1 -HostOnly",
+    "update:setup": "powershell -ExecutionPolicy Bypass -File update.ps1 -SetupOnly",
     "release": "powershell -ExecutionPolicy Bypass -File update.ps1"
   },
   "devDependencies": {
