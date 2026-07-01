@@ -224,6 +224,13 @@ function connect() {
   port.onMessage.addListener(msg => {
     if (!msg?.type) return;
     if (msg.type === 'host:updateResult') {
+      if (msg.ok === false) {
+        if (pendingUpdateCheck) {
+          pendingUpdateCheck.resolve({ ok: false, error: msg.error || 'Host update failed' });
+          pendingUpdateCheck = null;
+        }
+        return;
+      }
       connState.updateInfo = {
         updatedActivities: msg.updatedActivities ?? [],
         activityStatus:    msg.activityStatus ?? [],
@@ -232,7 +239,7 @@ function connect() {
         receivedAt:        Date.now(),
       };
       if (pendingUpdateCheck) {
-        pendingUpdateCheck.resolve(connState.updateInfo);
+        pendingUpdateCheck.resolve({ ok: true, ...connState.updateInfo });
         pendingUpdateCheck = null;
       }
     }
@@ -381,11 +388,54 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     pendingUpdateCheck = {
       resolve(info) {
         clearTimeout(timeout);
-        respond({ ok: true, ...info });
+        respond(info);
       },
     };
 
     send({ type: 'host:checkUpdates', data: { apply: msg.apply !== false } });
+    return true;
+  }
+
+  if (msg.type === 'host:installActivity') {
+    if (!port || !connState.connected) {
+      sendResponse({ ok: false, error: 'Native host not connected' });
+      return true;
+    }
+
+    const activityId = msg.activityId;
+    if (!activityId) {
+      sendResponse({ ok: false, error: 'Missing activityId' });
+      return true;
+    }
+
+    let responded = false;
+    const respond = data => {
+      if (responded) return;
+      responded = true;
+      sendResponse(data);
+    };
+
+    let phase = 'install';
+
+    const timeout = setTimeout(() => {
+      if (responded || !pendingUpdateCheck) return;
+      if (phase === 'install') {
+        phase = 'check';
+        send({ type: 'host:checkUpdates', data: { apply: true } });
+      } else {
+        pendingUpdateCheck = null;
+        respond({ ok: false, error: 'Install timed out' });
+      }
+    }, 6000);
+
+    pendingUpdateCheck = {
+      resolve(info) {
+        clearTimeout(timeout);
+        respond(info);
+      },
+    };
+
+    send({ type: 'host:installActivity', data: { activityId } });
     return true;
   }
 

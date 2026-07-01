@@ -607,6 +607,10 @@ async function runUpdateCheck(apply = true) {
           hostVersion:       res.hostVersion ?? null,
         };
         currentState.updateInfo = hostInfo;
+        if (hostInfo.activityStatus?.length) {
+          await applyHostActivityStatus(hostInfo.activityStatus);
+          renderActivities(searchInput.value);
+        }
       } else if (res?.error) {
         $('updates-host-note').textContent = res.error;
       }
@@ -620,6 +624,65 @@ async function runUpdateCheck(apply = true) {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Check for updates';
+  }
+}
+
+/** Pull presence.js from GitHub onto the native host (no Updates panel). */
+async function installHostActivity(activityId, btn) {
+  const orig = btn?.textContent ?? 'Install activity';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Installing…';
+  }
+
+  try {
+    if (!currentState.connected) {
+      await doReconnect(null);
+      await new Promise(r => setTimeout(r, 1200));
+      await syncState();
+    }
+
+    if (!currentState.connected) {
+      throw new Error('Native host not connected. Run Syncr Setup or Reconnect.');
+    }
+
+    const res = await browser.runtime.sendMessage({
+      type:       'host:installActivity',
+      activityId,
+    });
+
+    if (!res?.ok) {
+      throw new Error(res?.error || 'Install failed');
+    }
+
+    currentState.updateInfo = {
+      updatedActivities: res.updatedActivities ?? [],
+      activityStatus:    res.activityStatus ?? [],
+      hostUpdate:        res.hostUpdate ?? null,
+      hostVersion:       res.hostVersion ?? null,
+    };
+
+    if (res.activityStatus?.length) {
+      await applyHostActivityStatus(res.activityStatus);
+    }
+
+    const entry = (res.activityStatus ?? []).find(s => s.id === activityId);
+    if (entry && !entry.installed) {
+      throw new Error('Could not download activity from GitHub. Check your connection.');
+    }
+
+    renderActivities(searchInput.value);
+    renderUpdateBanner(currentState.updateInfo);
+    if (updatesPanelOpen) {
+      renderUpdatesPanel(lastRemoteUpdateInfo, currentState.updateInfo);
+    }
+  } catch (err) {
+    if (btn) btn.textContent = 'Failed';
+    setTimeout(() => { if (btn) btn.textContent = orig; }, 2500);
+    throw err;
+  } finally {
+    if (btn) btn.disabled = false;
+    if (btn && btn.textContent === 'Installing…') btn.textContent = orig;
   }
 }
 
@@ -781,8 +844,12 @@ function renderActivities(filter = '') {
   activitiesList.querySelectorAll('[data-update-host]').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.preventDefault();
-      openUpdatesPanel();
-      await runUpdateCheck(true);
+      const id = btn.dataset.updateHost;
+      try {
+        await installHostActivity(id, btn);
+      } catch (err) {
+        console.warn('Syncr: activity install failed', err);
+      }
     });
   });
 

@@ -96,6 +96,49 @@ async function handleMessage({ type, activityId, data }) {
       break;
     }
 
+    case 'host:installActivity': {
+      const activityId = data?.activityId;
+      const { installActivity, checkHostUpdate, getActivityStatus, localVersion } = require('./updater');
+
+      if (!activityId) {
+        writeMessage({
+          type:  'host:updateResult',
+          ok:    false,
+          error: 'Missing activityId',
+        });
+        break;
+      }
+
+      try {
+        const { updated } = await installActivity(activityId, log);
+        if (updated) {
+          const fresh = loadActivities();
+          if (fresh.has(activityId)) activities.set(activityId, fresh.get(activityId));
+        }
+
+        const [activityStatus, hostUpdate] = await Promise.all([
+          getActivityStatus(),
+          checkHostUpdate(log),
+        ]);
+
+        writeMessage({
+          type: 'host:updateResult',
+          updatedActivities: updated ? [activityId] : [],
+          activityStatus,
+          hostUpdate,
+          hostVersion: localVersion(),
+        });
+      } catch (err) {
+        log('warn', `installActivity ${activityId}: ${err.message}`);
+        writeMessage({
+          type:  'host:updateResult',
+          ok:    false,
+          error: err.message,
+        });
+      }
+      break;
+    }
+
     case 'activity:update': {
       const activity = activities.get(activityId);
       if (!activity) { log('warn', `Unknown activityId: ${activityId}`); return; }

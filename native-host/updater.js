@@ -122,6 +122,22 @@ async function updateActivities(log) {
   return updated;
 }
 
+async function installActivity(id, log) {
+  const url       = `${RAW}/native-host/activities/${id}/presence.js`;
+  const localPath = path.join(ACTIVITIES_DIR, id, 'presence.js');
+
+  const remote = await fetchText(url);
+  const updated = sha256(remote) !== fileHash(localPath);
+
+  if (updated) {
+    fs.mkdirSync(path.join(ACTIVITIES_DIR, id), { recursive: true });
+    writeAtomic(localPath, remote);
+    log('info', `Updater: activity "${id}" installed`);
+  }
+
+  return { id, updated };
+}
+
 async function getActivityStatus() {
   const statuses = [];
   let ids;
@@ -184,6 +200,7 @@ async function checkHostUpdate(log) {
 
 module.exports = {
   updateActivities,
+  installActivity,
   checkHostUpdate,
   getActivityStatus,
   getRemoteHostVersion,

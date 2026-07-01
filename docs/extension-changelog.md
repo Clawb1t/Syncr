@@ -8,7 +8,17 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Version history
 
-### 1.0.22 (current)
+### 1.0.23 (current)
+
+**Install activity from the activity card**
+
+- **Install activity** on a locked card downloads `presence.js` from GitHub straight to the native host — no Updates panel detour.
+- Refreshes the activity list when install completes so the toggle unlocks immediately.
+- Host supports single-activity install (`host:installActivity`); older hosts fall back to full check automatically.
+
+---
+
+### 1.0.22
 
 **Proton Mail fix + engine version in Settings**
 
