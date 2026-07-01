@@ -1,8 +1,8 @@
 # Syncr
 
-**Discord Rich Presence for Firefox.** Syncr shows what you're doing on the web — right on your Discord profile.
+**Discord Rich Presence for Firefox.** Syncr shows what you're doing on the web, right on your Discord profile.
 
-Browse YouTube, listen on YouTube Music, scroll Reddit, check your mail — and your friends see it in Discord, the same way a desktop app would. No Discord login required. No cloud servers. Everything stays on your PC.
+Browse YouTube, listen on YouTube Music, scroll Reddit, check your mail, and your friends see it in Discord, the same way a desktop app would. No Discord login required. No cloud servers. Everything stays on your PC.
 
 ---
 
@@ -20,10 +20,10 @@ Open the Syncr popup to see what's currently being transmitted, search through a
 |---|---|
 | **YouTube Music** | Listening status with song title, artist, album art, and a progress bar |
 | **YouTube** | Watching status with video title and channel |
-| **Reddit** | Post titles, subreddits, scores, and browsing context — or a general browsing status on feeds and profiles |
-| **Proton Mail** | A generic "checking mail" status — no subjects, senders, or personal content |
+| **Reddit** | Post titles, subreddits, scores, and browsing context, or a general browsing status on feeds and profiles |
+| **Proton Mail** | A generic "checking mail" status with no subjects, senders, or personal content |
 
-New activities are added over time. The popup picks them up automatically — no reinstall needed for most updates.
+New activities are added over time. The popup picks them up automatically, with no reinstall needed for most updates.
 
 ---
 
@@ -31,10 +31,10 @@ New activities are added over time. The popup picks them up automatically — no
 
 Syncr is built to stay local:
 
-- **No Discord account login** — Syncr talks directly to the Discord desktop app on your machine
-- **No cloud backend** — page data goes from Firefox → a small local app → Discord. Nothing is sent to a Syncr server
-- **You choose what to share** — disable any activity you don't want on your profile
-- **Privacy-conscious activities** — some integrations (like Proton Mail) are deliberately generic and never expose sensitive details
+- **No Discord account login:** Syncr talks directly to the Discord desktop app on your machine
+- **No cloud backend:** page data goes from Firefox → a small local app → Discord. Nothing is sent to a Syncr server
+- **You choose what to share:** disable any activity you don't want on your profile
+- **Privacy-conscious activities:** some integrations (like Proton Mail) are deliberately generic and never expose sensitive details
 
 ---
 
