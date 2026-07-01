@@ -7,6 +7,9 @@ const path = require('path');
 const root = path.join(__dirname, '..', 'extension', 'activities');
 const errors = [];
 
+/** Keys the popup can show in "Now playing" — at least one required per emit block. */
+const DISPLAY_KEYS = ['title', 'context', 'details', 'browsing', 'browsingContext', 'name', 'searchQuery'];
+
 function walkScrapers(dir) {
   const found = [];
   for (const name of fs.readdirSync(dir)) {
@@ -16,6 +19,26 @@ function walkScrapers(dir) {
     if (fs.existsSync(scraper)) found.push(scraper);
   }
   return found;
+}
+
+function collectEmitBlocks(data) {
+  const emits = [];
+  const add = block => { if (block?.emit) emits.push(block.emit); };
+
+  for (const rule of data.rules || []) add(rule);
+  for (const profile of data.profiles || []) {
+    for (const rule of profile.rules || []) add(rule);
+  }
+  add(data.default);
+  add(data.fallback);
+  return emits;
+}
+
+function hasDisplayField(emit) {
+  if (!emit || typeof emit !== 'object') return false;
+  if (DISPLAY_KEYS.some(k => emit[k] != null && emit[k] !== '')) return true;
+  if (emit.details != null && emit.state != null) return true;
+  return false;
 }
 
 function validate(file) {
@@ -45,6 +68,20 @@ function validate(file) {
 
   if (data.pollMs != null && data.pollMs < 1000) {
     errors.push(`${file}: pollMs must be >= 1000`);
+  }
+
+  const emits = collectEmitBlocks(data);
+  if (!emits.length) {
+    errors.push(`${file}: no emit blocks found — add rules/default with emit`);
+    return;
+  }
+  for (let i = 0; i < emits.length; i++) {
+    if (!hasDisplayField(emits[i])) {
+      errors.push(
+        `${file}: emit block #${i + 1} has no popup display field ` +
+        `(use title, context, details, browsing, or details+state)`,
+      );
+    }
   }
 }
 

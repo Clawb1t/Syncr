@@ -8,7 +8,19 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Version history
 
-### 1.0.23 (current)
+### 1.0.24 (current)
+
+**Activity polish + safeguards for future activities**
+
+- **Now playing** shows GitHub `details` / `state`, Proton mode subtitles, and generic fallbacks for new activities.
+- **Proton Mail** scraper v2: folder rules before compose detection, `{url}` page links, visible-composer-only drafting.
+- Engine skips incomplete `{template}` URLs (fixes GitHub avatar extraction).
+- Scraper validation requires popup display fields on every emit block (`npm run validate:scrapers`).
+- **Now playing** warns when host `presence.js` is missing; re-flushes Discord after Install activity.
+
+---
+
+### 1.0.23
 
 **Install activity from the activity card**
 

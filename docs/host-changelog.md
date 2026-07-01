@@ -23,7 +23,18 @@ The native host is `syncr-host.exe`. Its version is stored in `native-host/versi
 
 ## Version history
 
-### 1.0.8 (current)
+### 1.0.9 (current)
+
+**Shipped with:** extension v1.0.23
+
+- Host reports missing `presence.js` to the extension (`host:activityMissing`) with a clear Install activity prompt.
+- GitHub activity presence: skip incomplete avatar URLs; fall back to `github_logo`.
+
+**Activities in repo:** YouTube Music, YouTube, Reddit, Proton Mail, Netflix, GitHub
+
+---
+
+### 1.0.8
 
 **Shipped with:** extension v1.0.12
 

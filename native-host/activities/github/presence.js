@@ -17,7 +17,7 @@ function cleanAuthor(raw) {
 
 function largeImage(avatarUrl, fallback = 'github_logo') {
   const url = String(avatarUrl ?? '').trim();
-  if (url.startsWith('https://')) return url;
+  if (url.startsWith('https://') && !/\/u\/?$/.test(url)) return url;
   return fallback;
 }
 

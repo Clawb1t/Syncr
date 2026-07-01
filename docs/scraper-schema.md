@@ -31,6 +31,25 @@ Every remote activity requires:
 
 Add the ID to `extension/activities/registry.json` and ship `native-host/activities/{id}/presence.js`.
 
+**Both files are required.** The extension scrapes the page; the host formats Discord presence. Without `presence.js` on the host, the popup may show “live” but Discord stays empty — use **Install activity** on the card (extension 1.0.23+).
+
+---
+
+## Popup display fields
+
+Every `emit` block must include at least one field the popup can show in **Now playing**:
+
+| Field | Example use |
+|---|---|
+| `title` | YouTube, Netflix, Reddit posts |
+| `context` | Proton Mail (“Browsing inbox”) |
+| `details` + optional `state` | GitHub (“Browsing repository” / `owner/repo`) |
+| `browsing` + `browsingContext` | Feed/browse modes |
+
+`npm run validate:scrapers` fails if an emit block has none of these — catches blank popup text before release.
+
+Use `{url}` for `pageUrl` so Discord buttons open the current tab.
+
 ---
 
 ## scraper.json structure

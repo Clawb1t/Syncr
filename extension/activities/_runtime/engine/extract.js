@@ -83,6 +83,11 @@ const SyncrEngineExtract = (function () {
     }
 
     if (spec.template) {
+      const keys = [...String(spec.template).matchAll(/\{([^}]+)\}/g)]
+        .map(m => m[1].trim().split('.')[0]);
+      for (const key of keys) {
+        if (isEmpty(ctx[key])) return '';
+      }
       return SyncrEngineEmit.interpolate(spec.template, ctx);
     }
 

@@ -8,28 +8,12 @@
     {
       "when": {
         "hostnameIncludes": "proton",
-        "selectorExists": [
-          "[data-testid=\"composer\"]",
-          ".composer-container",
-          ".proton-mail-composer",
-          ".composer--container"
-        ]
-      },
-      "emit": {
-        "mode": "drafting",
-        "context": "Drafting an email",
-        "pageUrl": "https://mail.proton.me/"
-      }
-    },
-    {
-      "when": {
-        "hostnameIncludes": "proton",
         "hashParamAny": ["elementID", "messageID"]
       },
       "emit": {
         "mode": "viewing",
         "context": "Viewing an email",
-        "pageUrl": "https://mail.proton.me/"
+        "pageUrl": "{url}"
       }
     },
     {
@@ -44,7 +28,7 @@
       "emit": {
         "mode": "viewing",
         "context": "Viewing an email",
-        "pageUrl": "https://mail.proton.me/"
+        "pageUrl": "{url}"
       }
     },
     {
@@ -68,8 +52,85 @@
       "emit": {
         "mode": "viewing",
         "context": "Viewing an email",
-        "pageUrl": "https://mail.proton.me/"
+        "pageUrl": "{url}"
       }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathIncludes": "/all-drafts"
+      },
+      "emit": { "mode": "browsing", "context": "Browsing drafts", "pageUrl": "{url}" }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathIncludes": "/drafts"
+      },
+      "emit": { "mode": "browsing", "context": "Browsing drafts", "pageUrl": "{url}" }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathIncludes": "/all-sent"
+      },
+      "emit": { "mode": "browsing", "context": "Browsing sent mail", "pageUrl": "{url}" }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathIncludes": "/sent"
+      },
+      "emit": { "mode": "browsing", "context": "Browsing sent mail", "pageUrl": "{url}" }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathIncludes": "/starred"
+      },
+      "emit": { "mode": "browsing", "context": "Browsing starred mail", "pageUrl": "{url}" }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathIncludes": "/archive"
+      },
+      "emit": { "mode": "browsing", "context": "Browsing archive", "pageUrl": "{url}" }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathIncludes": "/spam"
+      },
+      "emit": { "mode": "browsing", "context": "Browsing spam", "pageUrl": "{url}" }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathIncludes": "/trash"
+      },
+      "emit": { "mode": "browsing", "context": "Browsing trash", "pageUrl": "{url}" }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathIncludes": ["/all-mail", "/almost-all-mail"]
+      },
+      "emit": { "mode": "browsing", "context": "Browsing all mail", "pageUrl": "{url}" }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathIncludes": "/newsletters"
+      },
+      "emit": { "mode": "browsing", "context": "Browsing newsletters", "pageUrl": "{url}" }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathIncludes": "/inbox"
+      },
+      "emit": { "mode": "browsing", "context": "Browsing inbox", "pageUrl": "{url}" }
     },
     {
       "when": {
@@ -92,99 +153,48 @@
       "emit": {
         "mode": "browsing",
         "context": "Browsing folder",
-        "pageUrl": "https://mail.proton.me/"
+        "pageUrl": "{url}"
       }
     },
     {
       "when": {
-        "hostnameIncludes": "proton",
-        "pathIncludes": "/all-drafts"
+        "all": [
+          { "hostnameIncludes": "proton" },
+          {
+            "selectorExists": [
+              "[data-testid=\"composer\"]:not([hidden])",
+              ".composer-container:not([hidden])",
+              ".proton-mail-composer:not([hidden])",
+              ".composer--container:not([hidden])"
+            ]
+          },
+          {
+            "selectorNotExists": [
+              "[data-testid=\"message-view\"]:not([hidden])",
+              "[data-testid=\"conversation-view\"]:not([hidden])"
+            ]
+          }
+        ]
       },
-      "emit": { "mode": "browsing", "context": "Browsing drafts", "pageUrl": "https://mail.proton.me/" }
-    },
-    {
-      "when": {
-        "hostnameIncludes": "proton",
-        "pathIncludes": "/drafts"
-      },
-      "emit": { "mode": "browsing", "context": "Browsing drafts", "pageUrl": "https://mail.proton.me/" }
-    },
-    {
-      "when": {
-        "hostnameIncludes": "proton",
-        "pathIncludes": "/all-sent"
-      },
-      "emit": { "mode": "browsing", "context": "Browsing sent mail", "pageUrl": "https://mail.proton.me/" }
-    },
-    {
-      "when": {
-        "hostnameIncludes": "proton",
-        "pathIncludes": "/sent"
-      },
-      "emit": { "mode": "browsing", "context": "Browsing sent mail", "pageUrl": "https://mail.proton.me/" }
-    },
-    {
-      "when": {
-        "hostnameIncludes": "proton",
-        "pathIncludes": "/starred"
-      },
-      "emit": { "mode": "browsing", "context": "Browsing starred mail", "pageUrl": "https://mail.proton.me/" }
-    },
-    {
-      "when": {
-        "hostnameIncludes": "proton",
-        "pathIncludes": "/archive"
-      },
-      "emit": { "mode": "browsing", "context": "Browsing archive", "pageUrl": "https://mail.proton.me/" }
-    },
-    {
-      "when": {
-        "hostnameIncludes": "proton",
-        "pathIncludes": "/spam"
-      },
-      "emit": { "mode": "browsing", "context": "Browsing spam", "pageUrl": "https://mail.proton.me/" }
-    },
-    {
-      "when": {
-        "hostnameIncludes": "proton",
-        "pathIncludes": "/trash"
-      },
-      "emit": { "mode": "browsing", "context": "Browsing trash", "pageUrl": "https://mail.proton.me/" }
-    },
-    {
-      "when": {
-        "hostnameIncludes": "proton",
-        "pathIncludes": ["/all-mail", "/almost-all-mail"]
-      },
-      "emit": { "mode": "browsing", "context": "Browsing all mail", "pageUrl": "https://mail.proton.me/" }
-    },
-    {
-      "when": {
-        "hostnameIncludes": "proton",
-        "pathIncludes": "/newsletters"
-      },
-      "emit": { "mode": "browsing", "context": "Browsing newsletters", "pageUrl": "https://mail.proton.me/" }
-    },
-    {
-      "when": {
-        "hostnameIncludes": "proton",
-        "pathIncludes": "/inbox"
-      },
-      "emit": { "mode": "browsing", "context": "Browsing inbox", "pageUrl": "https://mail.proton.me/" }
+      "emit": {
+        "mode": "drafting",
+        "context": "Drafting an email",
+        "pageUrl": "{url}"
+      }
     },
     {
       "when": {
         "hostnameIncludes": "proton",
         "pathIncludes": "/u/"
       },
-      "emit": { "mode": "browsing", "context": "Browsing emails", "pageUrl": "https://mail.proton.me/" }
+      "emit": { "mode": "browsing", "context": "Browsing emails", "pageUrl": "{url}" }
     }
   ],
   "default": {
     "emit": {
       "mode": "browsing",
       "context": "Browsing emails",
-      "pageUrl": "https://mail.proton.me/"
+      "pageUrl": "{url}"
     }
   }
 }
