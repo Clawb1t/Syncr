@@ -111,23 +111,52 @@ function getActivityOrigins(meta) {
   return [];
 }
 
-async function activityHasPermission(meta) {
+async function requestActivityPermission(meta) {
   const origins = getActivityOrigins(meta);
   if (!origins.length) return true;
-  if (!supportsDynamicLoader()) return true;
   try {
-    return await browser.permissions.contains({ origins });
+    if (await activityHasPermission(meta)) return true;
+    return await browser.permissions.request({ origins });
   } catch {
     return false;
   }
 }
 
-async function requestActivityPermission(meta) {
+/** Request site access for every enabled activity (popup open = user gesture). */
+async function requestAllMissingPermissions() {
+  if (!supportsDynamicLoader()) return true;
+
+  const origins = new Set();
+  for (const meta of ACTIVITY_META) {
+    if (disabledActivities.has(meta.id) || !meta._ready) continue;
+    if (await activityHasPermission(meta)) continue;
+    for (const o of getActivityOrigins(meta)) origins.add(o);
+  }
+
+  const list = [...origins];
+  if (!list.length) return true;
+
+  try {
+    if (await browser.permissions.contains({ origins: list })) return true;
+    const granted = await browser.permissions.request({ origins: list });
+    if (granted) {
+      await browser.runtime.sendMessage({ type: 'activity:resyncTabs' }).catch(() => {});
+    }
+    return granted;
+  } catch {
+    return false;
+  }
+}
+
+async function activityHasPermission(meta) {
   const origins = getActivityOrigins(meta);
   if (!origins.length) return true;
+  if (!supportsDynamicLoader()) return true;
   try {
-    if (await browser.permissions.contains({ origins })) return true;
-    return await browser.permissions.request({ origins });
+    for (const origin of origins) {
+      if (!await browser.permissions.contains({ origins: [origin] })) return false;
+    }
+    return true;
   } catch {
     return false;
   }
@@ -980,6 +1009,13 @@ setStatus('connecting');
 (async () => {
   await Promise.all([loadDisabled(), loadActivityRegistry()]);
   $('s-ext-version').textContent = EXT_VERSION;
+
+  // v1.0.13+: re-grant site access after upgrade (popup open counts as user gesture)
+  if (supportsDynamicLoader()) {
+    await requestAllMissingPermissions();
+    ACTIVITY_META = await attachPermissionFlags(ACTIVITY_META);
+  }
+
   renderActivities();
   await syncState();
 

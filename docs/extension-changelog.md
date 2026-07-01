@@ -8,7 +8,18 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Version history
 
-### 1.0.13 (current)
+### 1.0.14 (current)
+
+**Hotfix for dynamic loader**
+
+- Scan all open tabs when the extension loads (reload, browser start, install). Previously scrapers never injected until a tab was refreshed.
+- Popup prompts for missing site access on open (one-time migration from manifest `content_scripts`).
+- Clear injection cache on resync so permission grants take effect immediately.
+- Per-origin permission checks (fixes Reddit needing both `www` and `old` origins).
+
+---
+
+### 1.0.13
 
 **Shipped with:** host v1.0.8+
 

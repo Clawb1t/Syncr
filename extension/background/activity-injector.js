@@ -14,9 +14,14 @@ const metaCache         = new Map(); // id -> { meta, ts }
 const tabInjected       = new Map(); // tabId -> Set<activityId>
 const tabOrigin         = new Map(); // tabId -> origin string
 
-browser.storage.local.get('disabledActivities').then(stored => {
-  disabledActivities = new Set(stored.disabledActivities || []);
-}).catch(() => {});
+async function loadDisabledActivities() {
+  try {
+    const stored = await browser.storage.local.get('disabledActivities');
+    disabledActivities = new Set(stored.disabledActivities || []);
+  } catch {
+    disabledActivities = new Set();
+  }
+}
 
 browser.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local' || !changes.disabledActivities) return;
@@ -81,7 +86,11 @@ async function loadRegistryIds() {
 async function hasPermission(origins) {
   if (!origins?.length) return false;
   try {
-    return await browser.permissions.contains({ origins });
+    // contains() requires every listed origin to be granted
+    for (const origin of origins) {
+      if (!await browser.permissions.contains({ origins: [origin] })) return false;
+    }
+    return true;
   } catch {
     return false;
   }
@@ -122,7 +131,7 @@ async function injectActivity(tabId, activityId, meta) {
     set.add(activityId);
     tabInjected.set(tabId, set);
   } catch (err) {
-    // Tab may not allow injection (chrome://, PDF, etc.)
+    console.warn(`[Syncr] inject failed for ${activityId} on tab ${tabId}:`, err?.message || err);
   }
 }
 
@@ -190,6 +199,7 @@ browser.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.type === 'activity:resyncTabs') {
+    tabInjected.clear();
     browser.tabs.query({}).then(tabs => {
       for (const tab of tabs) {
         if (tab.id != null && tab.url) syncTab(tab.id, tab.url);
@@ -199,3 +209,28 @@ browser.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 });
+
+async function scanAllTabs() {
+  await loadDisabledActivities();
+  try {
+    const tabs = await browser.tabs.query({});
+    for (const tab of tabs) {
+      if (tab.id != null && tab.url) await syncTab(tab.id, tab.url);
+    }
+  } catch (err) {
+    console.warn('[Syncr] startup tab scan failed:', err?.message || err);
+  }
+}
+
+browser.runtime.onInstalled.addListener(() => {
+  tabInjected.clear();
+  scanAllTabs();
+});
+
+browser.runtime.onStartup.addListener(() => {
+  tabInjected.clear();
+  scanAllTabs();
+});
+
+// Extension reload during development — scan open tabs immediately
+scanAllTabs();
