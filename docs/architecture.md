@@ -143,22 +143,22 @@ Each activity card checks:
 | Check | Meaning |
 |---|---|
 | Bundled scraper, remote scraper, or `minExtensionVersion` | Extension can run the activity |
-| `browser.permissions.contains` for `origins` | User granted site access |
 | Host `activityStatus` installed + upToDate | `presence.js` is on disk and matches GitHub |
 
-Locked activities show why (extension update vs host update) and link to the fix. Enabled activities without permission show **Allow access**.
+Locked activities show why (extension update vs host update) and link to the fix.
 
-### Dynamic activity injection (v1.0.13+)
+### Universal remote activity host (v1.0.17+)
 
-**Location:** `extension/background/activity-injector.js`
+**Location:** `extension/activities/_runtime/universal.js` (manifest content script on `http://*/*`, `https://*/*`)
 
-**Bundled activities** (YouTube, Netflix, Reddit, etc.) use manifest `content_scripts` for reliable scraping.
+**Bundled activities** (YouTube, Netflix, Reddit, etc.) still use dedicated manifest `content_scripts` for reliable scraping.
 
 **Remote activities** (`scraper: "remote"` in `metadata.json`, e.g. Proton Mail):
 
-1. User enables the activity and grants site access in the popup.
-2. On tab load, the injector matches the URL and injects `activities/_runtime/runner.js`.
-3. The runner fetches `scraper.json` from GitHub.
+1. On every page load, `universal.js` asks the background which remote activity matches the URL (`activity:resolveForUrl`).
+2. The background merges the bundled registry with GitHub `registry.json` + `metadata.json` origins.
+3. The universal host fetches `scraper.json` from GitHub (bundle fallback) and runs the declarative engine.
+4. New remote activities only need GitHub files: registry entry, `metadata.json`, `scraper.json`, and host `presence.js`. No new XPI for site rules.
 
 See [`docs/scraper-schema.md`](scraper-schema.md).
 

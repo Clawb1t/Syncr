@@ -8,7 +8,33 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Version history
 
-### 1.0.16 (current)
+### 1.0.18 (current)
+
+**PreMiD-style universal remote host (fixes Proton Mail)**
+
+- Universal manifest content script (`activities/_runtime/universal.js`) runs on all http(s) pages and resolves remote activities by URL, like PreMiD's per-page injection model but using declarative `scraper.json` instead of remote JS (AMO policy).
+- Background merges **bundled** remote index with GitHub registry so Proton Mail works even before GitHub is updated or when offline.
+- `scraper.json` loads from GitHub first, bundle fallback second.
+- Retry URL resolution if the background index is not ready yet.
+- Removed optional site-permission prompts; universal manifest match grants host access.
+- Proton Mail scraper: fixed message-view detection (`pathSegmentAfter` with segment after folder).
+- Removed obsolete `activity-injector.js` and `runner.js`.
+
+**After updating:** reload the extension, then refresh `mail.proton.me`.
+
+---
+
+### 1.0.17
+
+**Universal remote activity host (initial)**
+
+- Added `universal.js` content script on `http://*/*` and `https://*/*`.
+- Bundled activities (YouTube, Reddit, Netflix) still use manifest `content_scripts`.
+- Background `activity:resolveForUrl` for remote activity matching.
+
+---
+
+### 1.0.16
 
 **Hotfix: bundled activities work again**
 

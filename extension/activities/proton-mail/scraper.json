@@ -48,6 +48,30 @@
       "when": {
         "hostnameIncludes": "proton",
         "pathSegmentAfter": {
+          "inbox": 1,
+          "drafts": 1,
+          "all-drafts": 1,
+          "sent": 1,
+          "all-sent": 1,
+          "starred": 1,
+          "archive": 1,
+          "spam": 1,
+          "trash": 1,
+          "all-mail": 1,
+          "almost-all-mail": 1,
+          "newsletters": 1
+        }
+      },
+      "emit": {
+        "mode": "viewing",
+        "context": "Viewing an email",
+        "pageUrl": "https://mail.proton.me/"
+      }
+    },
+    {
+      "when": {
+        "hostnameIncludes": "proton",
+        "pathSegmentAfter": {
           "inbox": 0,
           "drafts": 0,
           "all-drafts": 0,

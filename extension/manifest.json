@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Syncr",
-  "version": "1.0.16",
+  "version": "1.0.18",
   "description": "Display what you're doing in Firefox as Discord Rich Presence.",
   "author": "Syncr Contributors",
 
@@ -17,10 +17,6 @@
     "storage"
   ],
 
-  "optional_permissions": [
-    "<all_urls>"
-  ],
-
   "browser_action": {
     "default_popup": "popup/popup.html",
     "default_title": "Syncr",
@@ -28,14 +24,16 @@
   },
 
   "background": {
-    "scripts": [
-      "background/background.js",
-      "background/activity-injector.js"
-    ],
+    "scripts": ["background/background.js"],
     "persistent": true
   },
 
   "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["activities/_runtime/universal.js"],
+      "run_at": "document_idle"
+    },
     {
       "matches": ["*://music.youtube.com/*"],
       "js": ["activities/youtube-music/content-script.js"],
@@ -65,8 +63,7 @@
     "activities/*/logo.png",
     "activities/*/logo.svg",
     "activities/*/logo.jpg",
-    "activities/*/logo.webp",
-    "activities/_runtime/runner.js"
+    "activities/*/scraper.json"
   ],
 
   "browser_specific_settings": {

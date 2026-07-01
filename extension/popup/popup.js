@@ -111,75 +111,8 @@ function getActivityOrigins(meta) {
   return [];
 }
 
-/**
- * Request host permission. Must be called synchronously from a click handler
- * (no await before permissions.request or Firefox rejects the request).
- */
-function requestHostPermissionNow(origins) {
-  const list = origins?.length ? origins : ['<all_urls>'];
-  const req  = browser.permissions.request({ origins: list });
-  return req.then(granted => {
-    if (granted) return true;
-    if (list.length === 1 && list[0] === '<all_urls>') return false;
-    return browser.permissions.request({ origins: ['<all_urls>'] });
-  }).catch(() => {
-    if (list.length === 1 && list[0] === '<all_urls>') return false;
-    return browser.permissions.request({ origins: ['<all_urls>'] }).catch(() => false);
-  });
-}
-
 function isRemoteActivity(meta) {
   return meta?.scraper === 'remote';
-}
-
-async function activityHasPermission(meta) {
-  if (!isRemoteActivity(meta)) return true;
-  const origins = getActivityOrigins(meta);
-  if (!origins.length) return true;
-  if (!supportsDynamicLoader()) return true;
-  try {
-    const all = await browser.permissions.getAll();
-    const granted = all.origins || [];
-    if (granted.includes('<all_urls>') || granted.includes('*://*/*')) return true;
-    for (const origin of origins) {
-      if (!granted.includes(origin) && !await browser.permissions.contains({ origins: [origin] })) {
-        return false;
-      }
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function anyActivityNeedsPermission() {
-  if (!supportsDynamicLoader()) return false;
-  for (const meta of ACTIVITY_META) {
-    if (!isRemoteActivity(meta)) continue;
-    if (disabledActivities.has(meta.id) || !meta._ready) continue;
-    if (!await activityHasPermission(meta)) return true;
-  }
-  return false;
-}
-
-function collectMissingOrigins() {
-  const origins = new Set();
-  for (const meta of ACTIVITY_META) {
-    if (!isRemoteActivity(meta)) continue;
-    if (disabledActivities.has(meta.id) || !meta._ready) continue;
-    for (const o of getActivityOrigins(meta)) origins.add(o);
-  }
-  return [...origins];
-}
-
-async function afterPermissionGranted(activityId) {
-  if (activityId) {
-    await browser.runtime.sendMessage({ type: 'activity:permissionChanged', activityId }).catch(() => {});
-  }
-  await browser.runtime.sendMessage({ type: 'activity:resyncTabs' }).catch(() => {});
-  ACTIVITY_META = await attachPermissionFlags(ACTIVITY_META);
-  renderPermissionBanner();
-  renderActivities(searchInput?.value || '');
 }
 
 function mergeRegistryIds(remoteIds, bundledIds) {
@@ -229,11 +162,7 @@ function enrichActivityMeta(meta, bundledIds, hostStatus, remoteExtVersion) {
 }
 
 async function attachPermissionFlags(metas) {
-  if (!supportsDynamicLoader()) return metas;
-  return Promise.all(metas.map(async m => ({
-    ...m,
-    _hasPermission: await activityHasPermission(m),
-  })));
+  return metas;
 }
 
 function enrichAllMetas(metas, bundledIds, hostStatus, remoteExtVersion) {
@@ -411,8 +340,6 @@ const updateBanner   = $('update-banner');
 const updateBannerTitle = $('update-banner-title');
 const updateBannerSub   = $('update-banner-sub');
 const updateBannerBtn   = $('update-banner-btn');
-const permissionBanner    = $('permission-banner');
-const permissionBannerBtn = $('permission-banner-btn');
 const nowPlaying     = $('now-playing');
 const npLogo         = $('np-logo');
 const npTag          = $('np-activity-tag');
@@ -458,7 +385,6 @@ async function setActivityEnabled(id, enabled) {
   }
   await saveDisabled();
   await browser.runtime.sendMessage({ type: 'activity:setEnabled', activityId: id, enabled });
-  if (meta && enabled) meta._hasPermission = await activityHasPermission(meta);
   return true;
 }
 
@@ -525,23 +451,6 @@ updateBannerBtn.addEventListener('click', e => {
     e.preventDefault();
     openUpdatesPanel();
   }
-});
-
-async function renderPermissionBanner() {
-  if (!permissionBanner) return;
-  const needs = await anyActivityNeedsPermission();
-  permissionBanner.classList.toggle('hidden', !needs);
-}
-
-permissionBannerBtn?.addEventListener('click', () => {
-  const origins = collectMissingOrigins();
-  permissionBannerBtn.disabled = true;
-  permissionBannerBtn.textContent = 'Waiting…';
-  requestHostPermissionNow(origins.length ? origins : ['<all_urls>']).then(granted => {
-    permissionBannerBtn.disabled = false;
-    permissionBannerBtn.textContent = 'Grant access';
-    if (granted) afterPermissionGranted(null);
-  });
 });
 
 function setBadge(el, kind, text) {
@@ -831,8 +740,6 @@ function renderActivities(filter = '') {
 
   activitiesList.innerHTML = filtered.map(a => buildCard(a)).join('');
 
-  renderPermissionBanner();
-
   activitiesList.querySelectorAll('.toggle input').forEach(input => {
     input.addEventListener('change', e => {
       const id      = e.target.dataset.id;
@@ -844,26 +751,9 @@ function renderActivities(filter = '') {
       const enabled = e.target.checked;
       const card    = activitiesList.querySelector(`.activity-card[data-id="${id}"]`);
 
-      const finishEnable = () => {
+      if (enabled) {
         setActivityEnabled(id, true).then(() => {
           if (card) card.classList.toggle('is-disabled', false);
-          afterPermissionGranted(id);
-        });
-      };
-
-      if (enabled) {
-        const origins = getActivityOrigins(meta);
-        if (!isRemoteActivity(meta) || !origins.length) {
-          finishEnable();
-          return;
-        }
-        requestHostPermissionNow(origins).then(granted => {
-          if (!granted) {
-            e.target.checked = false;
-            if (card) card.classList.add('is-disabled');
-            return;
-          }
-          finishEnable();
         });
         return;
       }
@@ -872,25 +762,6 @@ function renderActivities(filter = '') {
         if (card) card.classList.toggle('is-disabled', true);
         renderNowPlaying(null, null);
         renderActivities(searchInput.value);
-      });
-    });
-  });
-
-  activitiesList.querySelectorAll('[data-allow-permission]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.preventDefault();
-      const id   = btn.dataset.allowPermission;
-      const meta = ACTIVITY_META.find(a => a.id === id);
-      if (!meta) return;
-      const origins = getActivityOrigins(meta);
-      btn.disabled = true;
-      const prevText = btn.textContent;
-      btn.textContent = 'Waiting…';
-      requestHostPermissionNow(origins.length ? origins : ['<all_urls>']).then(granted => {
-        btn.disabled = false;
-        btn.textContent = prevText;
-        if (!granted) return;
-        afterPermissionGranted(id);
       });
     });
   });
@@ -936,8 +807,6 @@ function buildCard(meta) {
     } else {
       updateHint = `<div class="ac-update-hint">${esc(meta._lockReason)}</div>`;
     }
-  } else if (meta._ready && isEnabled && isRemoteActivity(meta) && meta._hasPermission === false) {
-    updateHint = `<div class="ac-update-hint">Site access required · <button type="button" class="ac-update-link" data-allow-permission="${esc(meta.id)}">Allow access</button></div>`;
   }
 
   return `

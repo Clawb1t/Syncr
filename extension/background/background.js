@@ -2,10 +2,108 @@
 
 const NATIVE_HOST  = 'syncr';
 const RECONNECT_MS = 5000;
+const GITHUB_RAW   = 'https://raw.githubusercontent.com/Clawb1t/Syncr/main';
+const REMOTE_INDEX_MS = 5 * 60 * 1000;
 
 let port               = null;
 let reconnectTimer     = null;
 let disabledActivities = new Set();
+let remoteActivityIndex = [];
+let remoteIndexLoadedAt = 0;
+
+// ---------------------------------------------------------------------------
+// Remote activity index (GitHub registry + metadata, PreMiD-style resolution)
+// ---------------------------------------------------------------------------
+
+function patternToRegex(pattern) {
+  let p = String(pattern)
+    .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\\\*/g, '.*');
+  return new RegExp(`^${p}$`);
+}
+
+function urlMatchesPatterns(url, patterns) {
+  if (!url || !patterns?.length) return false;
+  return patterns.some(pat => patternToRegex(pat).test(url));
+}
+
+async function refreshRemoteActivityIndex(force = false) {
+  if (!force && remoteIndexLoadedAt && Date.now() - remoteIndexLoadedAt < REMOTE_INDEX_MS) {
+    return remoteActivityIndex;
+  }
+
+  const bundled = await loadBundledRemoteIndex();
+  const byId = new Map(bundled.map(e => [e.id, e]));
+
+  try {
+    const reg = await fetch(`${GITHUB_RAW}/extension/activities/registry.json`, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null);
+    const ids = reg?.activities ?? [];
+
+    for (const id of ids) {
+      let meta = null;
+      try {
+        meta = await fetch(`${GITHUB_RAW}/extension/activities/${id}/metadata.json`, { cache: 'no-store' })
+          .then(r => r.ok ? r.json() : null);
+      } catch {}
+      if (!meta || meta.scraper !== 'remote') continue;
+      const origins = meta.origins?.length ? meta.origins : (meta.urlPattern ? [meta.urlPattern] : []);
+      if (!origins.length) continue;
+      byId.set(id, { id, origins });
+    }
+
+    remoteActivityIndex = [...byId.values()];
+    remoteIndexLoadedAt = Date.now();
+    browser.storage.local.set({ syncrRemoteIndex: remoteActivityIndex, syncrRemoteIndexTs: remoteIndexLoadedAt }).catch(() => {});
+  } catch {
+    if (byId.size) {
+      remoteActivityIndex = [...byId.values()];
+      remoteIndexLoadedAt = Date.now();
+    } else {
+      const cached = await browser.storage.local.get(['syncrRemoteIndex', 'syncrRemoteIndexTs']).catch(() => ({}));
+      if (cached.syncrRemoteIndex) {
+        remoteActivityIndex = cached.syncrRemoteIndex;
+        remoteIndexLoadedAt = cached.syncrRemoteIndexTs || 0;
+      }
+    }
+  }
+
+  return remoteActivityIndex;
+}
+
+async function loadBundledRemoteIndex() {
+  try {
+    const reg = await fetch(browser.runtime.getURL('activities/registry.json')).then(r => r.ok ? r.json() : null);
+    const ids = reg?.activities ?? [];
+    const index = [];
+
+    for (const id of ids) {
+      let meta = null;
+      try {
+        meta = await fetch(browser.runtime.getURL(`activities/${id}/metadata.json`))
+          .then(r => r.ok ? r.json() : null);
+      } catch {}
+      if (!meta || meta.scraper !== 'remote') continue;
+      const origins = meta.origins?.length ? meta.origins : (meta.urlPattern ? [meta.urlPattern] : []);
+      if (!origins.length) continue;
+      index.push({ id, origins });
+    }
+
+    return index;
+  } catch {
+    return [];
+  }
+}
+
+function resolveRemoteActivityForUrl(url) {
+  return remoteActivityIndex
+    .filter(entry => urlMatchesPatterns(url, entry.origins))
+    .filter(entry => !disabledActivities.has(entry.id))
+    .map(entry => entry.id);
+}
+
+refreshRemoteActivityIndex(true);
+setInterval(() => refreshRemoteActivityIndex(true), REMOTE_INDEX_MS);
 
 // ---------------------------------------------------------------------------
 // Multi-activity tracking
@@ -179,6 +277,21 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'popup:getState') {
     sendResponse(buildPopupState());
+    return true;
+  }
+
+  if (msg.type === 'activity:resolveForUrl') {
+    refreshRemoteActivityIndex()
+      .then(() => {
+        const ids = resolveRemoteActivityForUrl(msg.url || '');
+        sendResponse({ id: ids[0] || null, ids, ready: true });
+      })
+      .catch(() => sendResponse({ id: null, ids: [], ready: false }));
+    return true;
+  }
+
+  if (msg.type === 'activity:isEnabled') {
+    sendResponse({ enabled: !disabledActivities.has(msg.activityId) });
     return true;
   }
 
