@@ -86,7 +86,7 @@ async function loadRegistryIds() {
 async function hasPermission(origins) {
   if (!origins?.length) return false;
   try {
-    // contains() requires every listed origin to be granted
+    if (await browser.permissions.contains({ origins: ['<all_urls>'] })) return true;
     for (const origin of origins) {
       if (!await browser.permissions.contains({ origins: [origin] })) return false;
     }

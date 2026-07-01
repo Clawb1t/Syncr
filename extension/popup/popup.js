@@ -111,41 +111,21 @@ function getActivityOrigins(meta) {
   return [];
 }
 
-async function requestActivityPermission(meta) {
-  const origins = getActivityOrigins(meta);
-  if (!origins.length) return true;
-  try {
-    if (await activityHasPermission(meta)) return true;
-    return await browser.permissions.request({ origins });
-  } catch {
-    return false;
-  }
-}
-
-/** Request site access for every enabled activity (popup open = user gesture). */
-async function requestAllMissingPermissions() {
-  if (!supportsDynamicLoader()) return true;
-
-  const origins = new Set();
-  for (const meta of ACTIVITY_META) {
-    if (disabledActivities.has(meta.id) || !meta._ready) continue;
-    if (await activityHasPermission(meta)) continue;
-    for (const o of getActivityOrigins(meta)) origins.add(o);
-  }
-
-  const list = [...origins];
-  if (!list.length) return true;
-
-  try {
-    if (await browser.permissions.contains({ origins: list })) return true;
-    const granted = await browser.permissions.request({ origins: list });
-    if (granted) {
-      await browser.runtime.sendMessage({ type: 'activity:resyncTabs' }).catch(() => {});
-    }
-    return granted;
-  } catch {
-    return false;
-  }
+/**
+ * Request host permission. Must be called synchronously from a click handler
+ * (no await before permissions.request or Firefox rejects the request).
+ */
+function requestHostPermissionNow(origins) {
+  const list = origins?.length ? origins : ['<all_urls>'];
+  const req  = browser.permissions.request({ origins: list });
+  return req.then(granted => {
+    if (granted) return true;
+    if (list.length === 1 && list[0] === '<all_urls>') return false;
+    return browser.permissions.request({ origins: ['<all_urls>'] });
+  }).catch(() => {
+    if (list.length === 1 && list[0] === '<all_urls>') return false;
+    return browser.permissions.request({ origins: ['<all_urls>'] }).catch(() => false);
+  });
 }
 
 async function activityHasPermission(meta) {
@@ -153,6 +133,7 @@ async function activityHasPermission(meta) {
   if (!origins.length) return true;
   if (!supportsDynamicLoader()) return true;
   try {
+    if (await browser.permissions.contains({ origins: ['<all_urls>'] })) return true;
     for (const origin of origins) {
       if (!await browser.permissions.contains({ origins: [origin] })) return false;
     }
@@ -160,6 +141,34 @@ async function activityHasPermission(meta) {
   } catch {
     return false;
   }
+}
+
+async function anyActivityNeedsPermission() {
+  if (!supportsDynamicLoader()) return false;
+  for (const meta of ACTIVITY_META) {
+    if (disabledActivities.has(meta.id) || !meta._ready) continue;
+    if (!await activityHasPermission(meta)) return true;
+  }
+  return false;
+}
+
+function collectMissingOrigins() {
+  const origins = new Set();
+  for (const meta of ACTIVITY_META) {
+    if (disabledActivities.has(meta.id) || !meta._ready) continue;
+    for (const o of getActivityOrigins(meta)) origins.add(o);
+  }
+  return [...origins];
+}
+
+async function afterPermissionGranted(activityId) {
+  if (activityId) {
+    await browser.runtime.sendMessage({ type: 'activity:permissionChanged', activityId }).catch(() => {});
+  }
+  await browser.runtime.sendMessage({ type: 'activity:resyncTabs' }).catch(() => {});
+  ACTIVITY_META = await attachPermissionFlags(ACTIVITY_META);
+  renderPermissionBanner();
+  renderActivities(searchInput?.value || '');
 }
 
 function mergeRegistryIds(remoteIds, bundledIds) {
@@ -391,6 +400,8 @@ const updateBanner   = $('update-banner');
 const updateBannerTitle = $('update-banner-title');
 const updateBannerSub   = $('update-banner-sub');
 const updateBannerBtn   = $('update-banner-btn');
+const permissionBanner    = $('permission-banner');
+const permissionBannerBtn = $('permission-banner-btn');
 const nowPlaying     = $('now-playing');
 const npLogo         = $('np-logo');
 const npTag          = $('np-activity-tag');
@@ -426,13 +437,6 @@ async function saveDisabled() {
 async function setActivityEnabled(id, enabled) {
   const meta = ACTIVITY_META.find(a => a.id === id);
 
-  if (enabled && meta) {
-    const granted = await requestActivityPermission(meta);
-    if (!granted) return false;
-    await browser.runtime.sendMessage({ type: 'activity:permissionChanged', activityId: id }).catch(() => {});
-    await browser.runtime.sendMessage({ type: 'activity:resyncTabs' }).catch(() => {});
-  }
-
   if (enabled) {
     disabledActivities.delete(id);
   } else {
@@ -443,7 +447,7 @@ async function setActivityEnabled(id, enabled) {
   }
   await saveDisabled();
   await browser.runtime.sendMessage({ type: 'activity:setEnabled', activityId: id, enabled });
-  if (meta) meta._hasPermission = enabled ? await activityHasPermission(meta) : meta._hasPermission;
+  if (meta && enabled) meta._hasPermission = await activityHasPermission(meta);
   return true;
 }
 
@@ -510,6 +514,23 @@ updateBannerBtn.addEventListener('click', e => {
     e.preventDefault();
     openUpdatesPanel();
   }
+});
+
+async function renderPermissionBanner() {
+  if (!permissionBanner) return;
+  const needs = await anyActivityNeedsPermission();
+  permissionBanner.classList.toggle('hidden', !needs);
+}
+
+permissionBannerBtn?.addEventListener('click', () => {
+  const origins = collectMissingOrigins();
+  permissionBannerBtn.disabled = true;
+  permissionBannerBtn.textContent = 'Waiting…';
+  requestHostPermissionNow(origins.length ? origins : ['<all_urls>']).then(granted => {
+    permissionBannerBtn.disabled = false;
+    permissionBannerBtn.textContent = 'Grant access';
+    if (granted) afterPermissionGranted(null);
+  });
 });
 
 function setBadge(el, kind, text) {
@@ -799,8 +820,10 @@ function renderActivities(filter = '') {
 
   activitiesList.innerHTML = filtered.map(a => buildCard(a)).join('');
 
+  renderPermissionBanner();
+
   activitiesList.querySelectorAll('.toggle input').forEach(input => {
-    input.addEventListener('change', async e => {
+    input.addEventListener('change', e => {
       const id      = e.target.dataset.id;
       const meta    = ACTIVITY_META.find(a => a.id === id);
       if (meta && !meta._ready) {
@@ -809,34 +832,55 @@ function renderActivities(filter = '') {
       }
       const enabled = e.target.checked;
       const card    = activitiesList.querySelector(`.activity-card[data-id="${id}"]`);
+
+      const finishEnable = () => {
+        setActivityEnabled(id, true).then(() => {
+          if (card) card.classList.toggle('is-disabled', false);
+          afterPermissionGranted(id);
+        });
+      };
+
       if (enabled) {
-        const ok = await setActivityEnabled(id, true);
-        if (!ok) {
-          e.target.checked = false;
-          if (card) card.classList.add('is-disabled');
+        const origins = getActivityOrigins(meta);
+        if (!origins.length) {
+          finishEnable();
           return;
         }
-      } else {
-        await setActivityEnabled(id, false);
+        requestHostPermissionNow(origins).then(granted => {
+          if (!granted) {
+            e.target.checked = false;
+            if (card) card.classList.add('is-disabled');
+            return;
+          }
+          finishEnable();
+        });
+        return;
       }
-      if (card) card.classList.toggle('is-disabled', !enabled);
-      if (!enabled) renderNowPlaying(null, null);
-      renderActivities(searchInput.value);
+
+      setActivityEnabled(id, false).then(() => {
+        if (card) card.classList.toggle('is-disabled', true);
+        renderNowPlaying(null, null);
+        renderActivities(searchInput.value);
+      });
     });
   });
 
   activitiesList.querySelectorAll('[data-allow-permission]').forEach(btn => {
-    btn.addEventListener('click', async e => {
+    btn.addEventListener('click', e => {
       e.preventDefault();
       const id   = btn.dataset.allowPermission;
       const meta = ACTIVITY_META.find(a => a.id === id);
       if (!meta) return;
-      const granted = await requestActivityPermission(meta);
-      if (!granted) return;
-      meta._hasPermission = true;
-      await browser.runtime.sendMessage({ type: 'activity:permissionChanged', activityId: id }).catch(() => {});
-      await browser.runtime.sendMessage({ type: 'activity:resyncTabs' }).catch(() => {});
-      renderActivities(searchInput.value);
+      const origins = getActivityOrigins(meta);
+      btn.disabled = true;
+      const prevText = btn.textContent;
+      btn.textContent = 'Waiting…';
+      requestHostPermissionNow(origins.length ? origins : ['<all_urls>']).then(granted => {
+        btn.disabled = false;
+        btn.textContent = prevText;
+        if (!granted) return;
+        afterPermissionGranted(id);
+      });
     });
   });
 
@@ -1009,13 +1053,7 @@ setStatus('connecting');
 (async () => {
   await Promise.all([loadDisabled(), loadActivityRegistry()]);
   $('s-ext-version').textContent = EXT_VERSION;
-
-  // v1.0.13+: re-grant site access after upgrade (popup open counts as user gesture)
-  if (supportsDynamicLoader()) {
-    await requestAllMissingPermissions();
-    ACTIVITY_META = await attachPermissionFlags(ACTIVITY_META);
-  }
-
+  await renderPermissionBanner();
   renderActivities();
   await syncState();
 

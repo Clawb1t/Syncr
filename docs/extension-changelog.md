@@ -8,7 +8,18 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Version history
 
-### 1.0.14 (current)
+### 1.0.15 (current)
+
+**Hotfix: site permission prompts**
+
+- `permissions.request()` is now called synchronously on button click. Awaiting other checks first dropped the user gesture and Firefox silently denied access.
+- **Grant access** per activity and top **Grant access** banner now show Firefox's permission dialog.
+- Falls back to `<all_urls>` if per-site request fails.
+- Permission checks recognize a granted `<all_urls>` optional permission.
+
+---
+
+### 1.0.14
 
 **Hotfix for dynamic loader**
 

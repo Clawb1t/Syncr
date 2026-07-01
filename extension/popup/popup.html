@@ -54,6 +54,18 @@
     </button>
   </div>
 
+  <!-- Site permission banner (v1.0.13+ dynamic loader) -->
+  <div class="update-banner hidden" id="permission-banner">
+    <div class="update-banner-icon">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>
+    </div>
+    <div class="update-banner-body">
+      <span class="update-banner-title">Site access needed</span>
+      <span class="update-banner-sub" id="permission-banner-sub">Allow Syncr to read enabled sites for Discord presence</span>
+    </div>
+    <button type="button" class="update-banner-btn" id="permission-banner-btn">Grant access</button>
+  </div>
+
   <!-- Transmitting activity strip -->
   <div class="live-strip hidden" id="now-playing">
     <div class="live-logo" id="np-logo">🔌</div>
