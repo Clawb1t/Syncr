@@ -16,10 +16,10 @@ let remoteIndexLoadedAt = 0;
 // ---------------------------------------------------------------------------
 
 function patternToRegex(pattern) {
-  let p = String(pattern)
-    .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
-    .replace(/\\\*/g, '.*');
-  return new RegExp(`^${p}$`);
+  const parts = String(pattern).split('*').map(part =>
+    part.replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+  );
+  return new RegExp(`^${parts.join('.*')}$`);
 }
 
 function urlMatchesPatterns(url, patterns) {
@@ -98,7 +98,6 @@ async function loadBundledRemoteIndex() {
 function resolveRemoteActivityForUrl(url) {
   return remoteActivityIndex
     .filter(entry => urlMatchesPatterns(url, entry.origins))
-    .filter(entry => !disabledActivities.has(entry.id))
     .map(entry => entry.id);
 }
 

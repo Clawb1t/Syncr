@@ -8,7 +8,21 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Version history
 
-### 1.0.18 (current)
+### 1.0.19 (current)
+
+**Hotfix: remote URL matching was completely broken**
+
+- `patternToRegex()` produced invalid regex for `*://mail.proton.me/*` patterns (`*` was never converted to `.*`), so `activity:resolveForUrl` threw on every Proton Mail tab and the universal host never started.
+- Remote resolve no longer filters disabled activities at match time (the scraper polls `activity:isEnabled` instead, so toggling on works without a tab refresh).
+- Universal host re-resolves on SPA navigation (`pushState` / `hashchange`) for login redirects.
+- Proton Mail origins include bare `mail.proton.me` URLs without a trailing path.
+- `scraper.json` loads from bundle first, GitHub second.
+
+**After updating:** reload the extension, then refresh `mail.proton.me`.
+
+---
+
+### 1.0.18
 
 **PreMiD-style universal remote host (fixes Proton Mail)**
 
