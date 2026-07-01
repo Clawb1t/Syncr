@@ -8,14 +8,23 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Version history
 
-### 1.0.20 (current)
+### 1.0.21 (current)
+
+**Hotfix: manifest warning**
+
+- Removed non-standard `syncr` key from `manifest.json` (Firefox warned on load). Engine version now lives in [`extension/engine-version.json`](extension/engine-version.json).
+- Removed stale `renderPermissionBanner()` call in popup boot.
+
+---
+
+### 1.0.20
 
 **Scraper Engine v2 — all activities are GitHub-only**
 
 - **Engine v2.0.0** (`extension/activities/_runtime/engine/`): declarative extractors, profiles, video timing, `fetchJson`, change detection, Netflix helpers.
 - **Migrated to remote `scraper.json`:** YouTube, YouTube Music, Reddit, Netflix (no bundled `content-script.js`).
 - **Single universal content script** on all http(s) pages; per-site manifest entries removed.
-- Popup gates activities on `minEngineVersion` vs `manifest.syncr.engineVersion` (not bundled scraper presence).
+- Popup gates activities on `minEngineVersion` vs `extension/engine-version.json` (not bundled scraper presence).
 - Proton Mail keeps v1 `scraper.json` via compatibility shim.
 - Added `npm run validate:scrapers` and `npm run test:engine`.
 

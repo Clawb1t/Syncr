@@ -147,20 +147,11 @@ Each activity card checks:
 
 Locked activities show why (extension update vs host update) and link to the fix.
 
-### Universal remote activity host (v1.0.17+)
+### Universal remote activity host (v2.0.0)
 
-**Location:** `extension/activities/_runtime/universal.js` (manifest content script on `http://*/*`, `https://*/*`)
+**Location:** `extension/activities/_runtime/universal.js` + `engine/`
 
-**Bundled activities** (YouTube, Netflix, Reddit, etc.) still use dedicated manifest `content_scripts` for reliable scraping.
-
-**Remote activities** (`scraper: "remote"` in `metadata.json`, e.g. Proton Mail):
-
-1. On every page load, `universal.js` asks the background which remote activity matches the URL (`activity:resolveForUrl`).
-2. The background merges the bundled registry with GitHub `registry.json` + `metadata.json` origins.
-3. The universal host fetches `scraper.json` from GitHub (bundle fallback) and runs the declarative engine.
-4. New remote activities only need GitHub files: registry entry, `metadata.json`, `scraper.json`, and host `presence.js`. No new XPI for site rules.
-
-See [`docs/scraper-schema.md`](scraper-schema.md) (v1, current) and [`docs/scraper-engine-v2-spec.md`](scraper-engine-v2-spec.md) (v2 target: all activities remote, no per-site XPI).
+All activities use `scraper: "remote"` and `scraper.json` on GitHub. The engine supports DOM extractors, video timing, `fetchJson`, profiles, and change detection. See [`docs/scraper-schema.md`](scraper-schema.md).
 
 ### Updates panel
 

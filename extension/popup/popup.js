@@ -9,8 +9,17 @@ const GITHUB_API         = 'https://api.github.com/repos/Clawb1t/Syncr';
 const RELEASES_URL       = 'https://github.com/Clawb1t/Syncr/releases/latest';
 const REGISTRY_CACHE_TTL = 5 * 60 * 1000; // soft cache — always revalidates in background
 const EXT_VERSION        = browser.runtime.getManifest().version;
-const ENGINE_VERSION     = browser.runtime.getManifest().syncr?.engineVersion || '2.0.0';
+let ENGINE_VERSION       = '2.0.0';
 const DYNAMIC_LOADER_VER = '1.0.13';
+
+async function loadEngineVersion() {
+  try {
+    const data = await fetch(browser.runtime.getURL('engine-version.json'), { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null);
+    if (data?.engineVersion) ENGINE_VERSION = data.engineVersion;
+  } catch {}
+  return ENGINE_VERSION;
+}
 
 let BUNDLED_ACTIVITY_IDS = [];
 let HOST_ACTIVITY_STATUS   = [];
@@ -176,6 +185,7 @@ async function saveRegistryCache(metas, allIds) {
     _registryCache: {
       ts:         Date.now(),
       extVersion: EXT_VERSION,
+      engineVersion: ENGINE_VERSION,
       ids:        allIds,
       metas,
     },
@@ -191,6 +201,7 @@ async function loadActivityRegistry({ background = false } = {}) {
 
   const cacheValid = cache
     && cache.extVersion === EXT_VERSION
+    && cache.engineVersion === ENGINE_VERSION
     && Array.isArray(cache.metas)
     && Date.now() - cache.ts < REGISTRY_CACHE_TTL;
 
@@ -926,9 +937,8 @@ async function syncState() {
 setStatus('connecting');
 
 (async () => {
-  await Promise.all([loadDisabled(), loadActivityRegistry()]);
+  await Promise.all([loadDisabled(), loadEngineVersion(), loadActivityRegistry()]);
   $('s-ext-version').textContent = EXT_VERSION;
-  await renderPermissionBanner();
   renderActivities();
   await syncState();
 

@@ -172,7 +172,7 @@ No engine work required.
 
 | Field | Location | Meaning |
 |-------|----------|---------|
-| `engineVersion` | `extension/manifest.json` (`syncr.engineVersion`) | Max DSL version this build understands |
+| `engineVersion` | `extension/engine-version.json` | Max DSL version this build understands |
 | `version` | `scraper.json` | DSL schema version (1 or 2) |
 | `minEngineVersion` | `metadata.json` | Minimum `engineVersion` required |
 | `minExtensionVersion` | deprecated | Alias for `minEngineVersion` during transition |

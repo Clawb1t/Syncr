@@ -23,7 +23,7 @@ Full spec: [`scraper-engine-v2-spec.md`](scraper-engine-v2-spec.md)
 | `scraper` | Must be `"remote"` |
 | `origins` | URL patterns for activity resolution |
 | `fetchOrigins` | Allowlist for `fetchJson` (optional) |
-| `minEngineVersion` | Minimum `manifest.syncr.engineVersion` |
+| `minEngineVersion` | Minimum `engine-version.json` in the extension |
 
 Add the ID to `extension/activities/registry.json` and ship `native-host/activities/{id}/presence.js`.
 
