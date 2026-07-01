@@ -1,17 +1,34 @@
-{
-  "id":           "netflix",
-  "name":         "Netflix",
-  "description":  "Tracks browsing, search, and playback on netflix.com",
-  "category":     "Streaming",
-  "icon":         "🎬",
-  "logo":         "logo.png",
-  "version":      "1.0.0",
-  "author":       "Syncr Contributors",
-  "urlPattern":   "*://www.netflix.com/*",
-  "origins":      ["*://www.netflix.com/*", "*://www.netflix.com"],
-  "fetchOrigins": ["https://www.netflix.com"],
-  "scraper":      "remote",
-  "minEngineVersion": "2.0.0",
-  "buttonLabel":  "Watch on Netflix",
-  "activityType": "WATCHING"
-}
+{
+
+  "id":           "netflix",
+
+  "name":         "Netflix",
+
+  "description":  "Tracks browsing, search, and playback on netflix.com",
+
+  "category":     "Streaming",
+
+  "icon":         "🎬",
+
+  "logo":         "logo.png",
+
+  "version":      "1.0.0",
+
+  "author":       "Syncr Contributors",
+
+  "urlPattern":   "*://www.netflix.com/*",
+
+  "origins":      ["*://www.netflix.com/*", "*://www.netflix.com"],
+
+  "fetchOrigins": ["https://www.netflix.com"],
+
+  "scraper":      "remote",
+
+  "minEngineVersion": "2.0.0",
+
+  "buttonLabel":  "Watch on Netflix",
+
+  "activityType": "WATCHING"
+
+}
+

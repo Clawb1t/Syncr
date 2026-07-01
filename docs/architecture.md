@@ -8,15 +8,17 @@ This document explains how Syncr is put together: how data moves from a Firefox 
 
 Syncr has three runtime pieces:
 
-1. **Firefox extension** (`extension/`): content scripts scrape pages; the background script manages state and talks to the host; the popup is the UI.
+1. **Firefox extension** (`extension/`): a universal scraper host + engine scrape pages; the background script manages state and talks to the host; the popup is the UI.
 2. **Native host** (`native-host/` → `syncr-host.exe`): receives scraped data, formats Discord Rich Presence, sends it over Discord IPC.
 3. **Syncr Setup** (`launcher/`): one-time installer that registers the native messaging host, downloads the signed extension, and seeds activity files.
 
 Nothing passes through a Syncr cloud server. The path is always local:
 
 ```
-Website tab  →  content script  →  background.js  →  syncr-host.exe  →  Discord desktop
+Website tab  →  universal.js + engine  →  background.js  →  syncr-host.exe  →  Discord desktop
 ```
+
+Activity **rules** (`scraper.json`) and **formatters** (`presence.js`) live on GitHub and hot-update without a new XPI (extension 1.0.20+, engine 2.0.0).
 
 ---
 
@@ -56,17 +58,19 @@ Implementation: `native-host/host.js` (read/write framing), `extension/backgroun
 
 ---
 
-## Extension: content scripts
+## Extension: Scraper Engine v2
 
-**Location:** `extension/activities/{id}/content-script.js`
+**Location:** `extension/activities/_runtime/universal.js` + `extension/activities/_runtime/engine/`
 
-Content scripts are declared in `extension/manifest.json` under `content_scripts`. Firefox injects them only on matching URLs (e.g. `*://www.reddit.com/*`).
+Since extension **1.0.20**, a **single universal content script** runs on all `http(s)://` pages (declared once in `manifest.json`). There are no per-site content scripts and no bundled `content-script.js` files.
 
-Each script:
+### Bootstrap flow
 
-1. Polls the page (typically every 2 seconds) or reacts to navigation events.
-2. Calls `scrape()` to build a plain JSON `data` object.
-3. Sends updates to the background script:
+1. **`universal.js`** calls `activity:resolveForUrl` with the current tab URL.
+2. **`background.js`** matches the URL against the remote activity index (bundled + GitHub `metadata.json` entries with `scraper: "remote"`).
+3. If matched, the host loads `scraper.json` (bundled copy first, then GitHub fallback).
+4. **`engine/evaluate.js`** runs declarative rules: `when` conditions, `extract` steps, `emit` templates, optional `fetchJson`, helpers, and change detection.
+5. On meaningful changes, the host sends:
 
 ```javascript
 browser.runtime.sendMessage({
@@ -76,15 +80,50 @@ browser.runtime.sendMessage({
 });
 ```
 
-4. Sends `activity:clear` when the user leaves the site or the tab unloads.
+6. Sends `activity:clear` when the activity is disabled or the tab unloads.
 
-Content scripts must **not** talk to Discord directly. They only scrape and message the background.
+### Engine modules
+
+| Module | Role |
+|---|---|
+| `context.js` | Base context (`url`, `origin`, `path`) |
+| `when.js` | Rule conditions (URL, selectors, hash params, profiles) |
+| `extract.js` | DOM/API extractors (`selectorText`, `video`, `fetchJson`, …) |
+| `emit.js` | Template interpolation into output payload |
+| `fetch.js` | Cached fetch with per-activity `fetchOrigins` allowlist |
+| `helpers.js` | Named helpers (Reddit URLs, Netflix metadata, …) |
+| `change-detection.js` | Dedup polls (field compare, seek threshold) |
+| `evaluate.js` | Rule runner + v1 compat shim |
+
+Engine version: `extension/engine-version.json` (`engineVersion`: `2.0.0`).
+
+### Activity data on GitHub
+
+| File | Purpose |
+|---|---|
+| `extension/activities/registry.json` | List of activity IDs |
+| `extension/activities/{id}/metadata.json` | Name, `origins`, `minEngineVersion`, logo |
+| `extension/activities/{id}/scraper.json` | Declarative scrape rules |
+
+See [`scraper-schema.md`](scraper-schema.md) and [`scraper-engine-v2-spec.md`](scraper-engine-v2-spec.md).
+
+The universal host must **not** download or execute arbitrary JavaScript from GitHub — only JSON rules interpreted by the fixed engine (AMO policy).
 
 ---
 
 ## Extension: background script
 
 **Location:** `extension/background/background.js`
+
+### Remote activity index
+
+On startup and every 5 minutes, the background:
+
+1. Loads bundled remote entries from `extension/activities/registry.json` + local `metadata.json`.
+2. Fetches GitHub registry and metadata, merging into `remoteActivityIndex`.
+3. Caches the index in `browser.storage.local` for offline fallback.
+
+`activity:resolveForUrl` returns `{ id, fetchOrigins, privacy, minEngineVersion }` for the first matching activity.
 
 ### Multi-activity tracking
 
@@ -106,7 +145,7 @@ When the transmitting activity changes, the background clears the old activity o
 
 ### Disabled activities
 
-Users can toggle activities off in the popup. Disabled IDs are stored in `browser.storage.local` (`disabledActivities`). Updates from disabled activities are ignored.
+Users can toggle activities off in the popup. Disabled IDs are stored in `browser.storage.local` (`disabledActivities`). Updates from disabled activities are ignored; the universal host clears presence when disabled.
 
 ### Tab lifecycle
 
@@ -142,16 +181,12 @@ Each activity card checks:
 
 | Check | Meaning |
 |---|---|
-| Bundled scraper, remote scraper, or `minExtensionVersion` | Extension can run the activity |
+| `minEngineVersion` vs installed engine (`engine-version.json`) | Extension engine can run the scraper |
 | Host `activityStatus` installed + upToDate | `presence.js` is on disk and matches GitHub |
 
-Locked activities show why (extension update vs host update) and link to the fix.
+Locked activities show why (engine update vs host update) and link to the fix.
 
-### Universal remote activity host (v2.0.0)
-
-**Location:** `extension/activities/_runtime/universal.js` + `engine/`
-
-All activities use `scraper: "remote"` and `scraper.json` on GitHub. The engine supports DOM extractors, video timing, `fetchJson`, profiles, and change detection. See [`docs/scraper-schema.md`](scraper-schema.md).
+Settings → About shows **Version** (extension XPI) and **Scraper engine** (engine runtime).
 
 ### Updates panel
 
@@ -302,8 +337,10 @@ No OAuth or client secret is needed. The host uses local Discord IPC.
 | Artifact | Source | User update path |
 |---|---|---|
 | `syncr.xpi` | AMO-signed, GitHub Releases | Firefox `updates.json` auto-update or manual install |
+| Scraper engine | Inside XPI (`_runtime/engine/`) | Extension update only |
+| `scraper.json` + `metadata.json` per activity | GitHub `main` | Loaded by universal host on tab poll |
 | `syncr-host.exe` | `pkg` build, GitHub Releases | Syncr Setup or direct exe download when host version bumps |
 | `presence.js` per activity | GitHub `main` | Host hot-updater (popup Check for updates) |
-| Activity registry/metadata | GitHub `main` | Popup fetches on open |
+| Activity registry/metadata | GitHub `main` | Popup + background fetch on open / interval |
 
 See [`host-changelog.md`](host-changelog.md) for what changed in each host version and [`activities.md`](activities.md) for how to add and ship new activities.

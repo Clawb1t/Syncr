@@ -1,24 +1,24 @@
 # Scraper engine v2 — spec: activities without new XPI
 
-**Status:** Implemented (extension 1.0.20, `engineVersion` 2.0.0)  
+**Status:** Implemented (extension 1.0.20+, engine 2.0.0; current extension 1.0.22)  
 **Goal:** Ship **one final engine upgrade** in the Firefox extension, then add or change **any activity** using only GitHub files (`registry.json`, `metadata.json`, `scraper.json`, `presence.js`).
 
-**Related:** [`scraper-schema.md`](scraper-schema.md) (v1, shipped), [`architecture.md`](architecture.md)
+**Related:** [`scraper-schema.md`](scraper-schema.md) (v2 rule reference), [`activities.md`](activities.md) (authoring guide), [`architecture.md`](architecture.md)
 
 ---
 
-## 1. Problem statement
+## 1. Problem statement (historical)
 
-Today Syncr splits activities into two buckets:
+Before Scraper Engine v2, Syncr split activities into two buckets:
 
-| Bucket | How it runs | New activity needs AMO? |
-|--------|-------------|-------------------------|
-| **Remote** | `universal.js` + `scraper.json` | No |
+| Bucket | How it ran | New activity needed AMO? |
+|--------|------------|--------------------------|
+| **Remote** | `universal.js` + v1 `scraper.json` | No (simple sites only) |
 | **Bundled** | Manifest `content_scripts` + `content-script.js` | Yes |
 
-Bundled exists because the v1 engine only supports URL/DOM-presence rules and static labels. YouTube, Netflix, Reddit, and YouTube Music need DOM text, attributes, video timing, API calls, and smart change detection.
+Bundled existed because the v1 engine only supported URL/DOM-presence rules and static labels. YouTube, Netflix, Reddit, and YouTube Music needed DOM text, attributes, video timing, API calls, and smart change detection.
 
-**Target:** Every activity uses the same universal host. Bundled `content-script.js` files and per-site manifest entries are removed after migration. New sites are **GitHub-only**.
+**Resolved in 1.0.20:** Every activity now uses the same universal host + engine v2. All bundled `content-script.js` files and per-site manifest entries were removed. New sites are **GitHub-only**.
 
 ---
 

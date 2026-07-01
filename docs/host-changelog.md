@@ -11,12 +11,13 @@ The native host is `syncr-host.exe`. Its version is stored in `native-host/versi
 | Change type | Needs new host exe? | Needs new extension XPI? | User action |
 |---|---|---|---|
 | Edit `presence.js` for an activity | No | No | Check for updates in popup (or wait for auto hot-update on host start) |
-| New activity `presence.js` on GitHub | No | No | Check for updates (host downloads new file) |
-| New content script / manifest entry | No* | **Yes** | Install new extension from Releases or Firefox auto-update |
+| New activity on GitHub (`scraper.json`, metadata, registry) | No | No | Popup picks up registry; reload tab; Check for updates for `presence.js` |
+| Edit `scraper.json` on GitHub | No | No | Reload target tab (extension 1.0.20+, engine 2.0.0) |
+| New engine primitive or engine bugfix | No* | **Yes** | Install new extension from Releases or Firefox auto-update |
 | SDK change (`native-host/sdk/`) | **Yes** | No | Run Syncr Setup or download new `syncr-host.exe` |
 | Host bug fix in `host.js`, `rpc-manager.js`, etc. | **Yes** | No | Run Syncr Setup or download new `syncr-host.exe` |
 
-\*The host can load a new `presence.js` immediately, but the extension cannot scrape the site until the content script ships in an XPI.
+\*Users need extension **1.0.20+** (Scraper Engine v2) once. After that, scraper rules hot-update from GitHub without a new XPI.
 
 ---
 

@@ -261,24 +261,29 @@ See [`docs/scraper-schema.md`](scraper-schema.md) for remote activity authoring.
 
 ## Activities vs extension version matrix
 
-| Activity | Min extension | Scraper type | Shipped in |
-|---|---|---|---|
-| YouTube Music | (bundled early) | bundled | 1.0.3 era |
-| YouTube | (bundled early) | bundled | 1.0.3 era |
-| Reddit | 1.0.9 | bundled | 1.0.9 |
-| Proton Mail | 1.0.13 | remote (`scraper.json`) | 1.0.11 |
-| Netflix | 1.0.12 | bundled | 1.0.12 |
+Since **Scraper Engine v2** (extension 1.0.20, engine 2.0.0), all activities use remote `scraper.json`. New activities do not require a new XPI.
 
-Remote activities (extension 1.0.13+): only `scraper.json` on GitHub, no new AMO if the declarative engine supports the site.
+| Activity | Min engine | Scraper | Notes |
+|---|---|---|---|
+| YouTube Music | 2.0.0 | `scraper.json` v2 | Migrated in 1.0.20 |
+| YouTube | 2.0.0 | `scraper.json` v2 | Migrated in 1.0.20 |
+| Reddit | 2.0.0 | `scraper.json` v2 | Migrated in 1.0.20 |
+| Netflix | 2.0.0 | `scraper.json` v2 | Migrated in 1.0.20 |
+| Proton Mail | 2.0.0 | `scraper.json` v2 | Remote since 1.0.13; v2 rules in 1.0.22 |
+
+**Extension version** (XPI) and **engine version** (`engine-version.json`) are separate. Settings → About shows both.
+
+Users need extension **1.0.20+** once. After that, activity rule changes ship via GitHub only.
 
 ---
 
 ## Checking the installed extension version
 
-**Users:** Firefox → Add-ons → Syncr, or the Syncr popup header.
+**Users:** Firefox → Add-ons → Syncr, or Syncr popup → Settings → About (**Version** + **Scraper engine**).
 
 **Repo source of truth:**
 
 ```text
-extension/manifest.json
+extension/manifest.json          # extension version (1.0.x)
+extension/engine-version.json    # scraper engine version (2.0.0)
 ```

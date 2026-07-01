@@ -179,18 +179,20 @@ Enforced automatically by `validatePresence`:
 
 | Layer | Location | Who ships it |
 |-------|----------|--------------|
-| Page scraping | `extension/activities/{id}/content-script.js` | Extension PR |
-| UI metadata | `extension/activities/{id}/metadata.json` | Extension PR |
-| Discord formatting | `native-host/activities/{id}/presence.js` | Host PR (uses SDK) |
+| Scraper rules | `extension/activities/{id}/scraper.json` on GitHub | Contributor PR — **no new XPI** (engine 2.0.0+) |
+| UI metadata | `extension/activities/{id}/metadata.json` on GitHub | Contributor PR |
+| Discord formatting | `native-host/activities/{id}/presence.js` on GitHub | Contributor PR (uses SDK) |
+
+The extension ships the **Scraper Engine v2** interpreter in the XPI (`extension/activities/_runtime/engine/`). Activity rules are declarative JSON loaded at runtime — not executable scripts from GitHub.
 
 The host hot-updates `presence.js` files from GitHub. The SDK itself ships inside `syncr-host.exe` and updates when users install a newer host.
 
-Extension changes are **not required** to use new SDK features — only `presence.js` and a host update.
+Extension changes are **not required** for new activities that fit the existing scraper DSL. Engine or SDK additions require an extension or host update respectively.
 
 ## Architecture
 
 ```
-Extension content script  →  { activityId, data }
+Universal host + engine  →  { activityId, data }   (from scraper.json rules)
        ↓
 Native host host.js       →  formatPresence(data, syncr)
        ↓

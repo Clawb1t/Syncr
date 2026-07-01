@@ -2,28 +2,40 @@
 
 This guide is for **contributors** who want to add or improve a Syncr activity, and for **maintainers** who review, merge, and ship changes to users.
 
-For low-level code flow, see [`architecture.md`](architecture.md). For SDK API details, see [`native-host/ACTIVITY_SDK.md`](../native-host/ACTIVITY_SDK.md).
+For low-level code flow, see [`architecture.md`](architecture.md). For scraper rule syntax, see [`scraper-schema.md`](scraper-schema.md) and [`scraper-engine-v2-spec.md`](scraper-engine-v2-spec.md). For SDK API details, see [`native-host/ACTIVITY_SDK.md`](../native-host/ACTIVITY_SDK.md).
 
 ---
 
 ## What is an activity?
 
-An activity is a site integration (e.g. Reddit, Proton Mail). It has two parts:
+An activity is a site integration (e.g. Reddit, Proton Mail). Since **Scraper Engine v2** (extension 1.0.20+, engine 2.0.0), every activity has two parts:
 
 | Part | Location | Runs in | Ships via |
 |---|---|---|---|
-| **Scraper (bundled)** | `extension/activities/{id}/content-script.js` | Firefox on matching URLs (injected at runtime) | Signed extension `.xpi` (complex sites) |
-| **Scraper (remote)** | `extension/activities/{id}/scraper.json` | Firefox on matching URLs (declarative engine) | GitHub `main` (no new AMO) |
-| **Presence formatter** | `native-host/activities/{id}/presence.js` | `syncr-host.exe` | GitHub `main` (hot-update) or new host exe |
+| **Scraper rules** | `extension/activities/{id}/scraper.json` | Firefox (declarative engine) | GitHub `main` — **no new XPI** |
+| **Presence formatter** | `native-host/activities/{id}/presence.js` | `syncr-host.exe` | GitHub `main` (hot-update) |
 
 Plus UI metadata and branding:
 
-- `extension/activities/{id}/metadata.json` (must include `origins` and `scraper`: `"remote"` or `"bundled"`)
-- `extension/activities/{id}/logo.png` or `logo.svg`
+- `extension/activities/{id}/metadata.json` — popup listing, URL origins, `minEngineVersion`
+- `extension/activities/{id}/logo.png` or `logo.svg` (optional but recommended)
 - Registry entry in `extension/activities/registry.json`
-- **No** per-site `content_scripts` entry in `manifest.json` (extension v1.0.13+ injects dynamically)
 
-Site access is requested in the popup when the user enables an activity (`browser.permissions.request`).
+The extension ships **one universal content script** on all `http(s)://` pages. It resolves the current URL against the activity index, loads `scraper.json`, and runs rules through the fixed engine in the XPI. **No per-site manifest entries. No `content-script.js`.**
+
+---
+
+## What needs a new XPI?
+
+| Change | New XPI? |
+|---|---|
+| New activity (`metadata.json` + `scraper.json` + `presence.js` on GitHub) | **No** |
+| Fix or improve rules in `scraper.json` | **No** |
+| New `presence.js` formatting | **No** (host hot-update) |
+| New engine primitive (helper, extractor type) | **Yes** |
+| Engine bugfix or Firefox manifest change | **Yes** |
+
+Users need extension **1.0.20+** once (engine 2.0.0). After that, new activities are GitHub-only unless the site needs something the DSL cannot express yet.
 
 ---
 
@@ -43,7 +55,7 @@ You do **not** need AMO signing keys or GitHub release tokens to contribute.
 
 ### 1. `extension/activities/{id}/metadata.json`
 
-Describes the activity in the popup.
+Describes the activity in the popup and tells the background script which URLs to match.
 
 ```json
 {
@@ -55,57 +67,80 @@ Describes the activity in the popup.
   "logo": "logo.png",
   "version": "1.0.0",
   "author": "Your Name",
-  "urlPattern": "*://example.com/*",
+  "urlPattern": "*://www.example.com/*",
+  "origins": ["*://www.example.com/*", "*://old.example.com/*"],
+  "scraper": "remote",
+  "minEngineVersion": "2.0.0",
   "buttonLabel": "Open site",
-  "activityType": "WATCHING",
-  "minExtensionVersion": "1.0.12"
+  "activityType": "WATCHING"
 }
 ```
 
-Set `minExtensionVersion` to the **first extension release** that includes your content script. The popup uses this to lock the toggle until users update.
+| Field | Required | Purpose |
+|---|---|---|
+| `origins` | Yes | URL patterns for activity resolution (include bare host if needed, e.g. `*://mail.proton.me`) |
+| `scraper` | Yes | Must be `"remote"` |
+| `minEngineVersion` | Yes | Minimum scraper engine version (`extension/engine-version.json`) |
+| `fetchOrigins` | If using `fetchJson` | Allowlist of origins the scraper may fetch |
 
-### 2. `extension/activities/{id}/content-script.js`
+Set `minEngineVersion` to the **lowest engine version** your `scraper.json` requires. The popup locks the toggle until the installed extension meets that engine version.
 
-Scrapes the page and sends updates to the background script.
+### 2. `extension/activities/{id}/scraper.json`
 
-**Required pattern:**
+Declarative rules interpreted by Scraper Engine v2. See [`scraper-schema.md`](scraper-schema.md) for the full DSL.
 
-```javascript
-(function () {
-  'use strict';
-  const ACTIVITY_ID = 'my-site';
-  const POLL_MS = 2000;
-  let lastSent = null;
+Minimal example (URL-only, like Proton Mail):
 
-  function scrape() {
-    // Return data object, { browsing: true }, or null if not ready
+```json
+{
+  "version": 2,
+  "pollMs": 2000,
+  "changeDetection": { "compareFields": ["mode", "context"] },
+  "rules": [
+    {
+      "when": { "pathIncludes": "/compose" },
+      "emit": { "mode": "drafting", "context": "Drafting", "pageUrl": "{url}" }
+    }
+  ],
+  "default": {
+    "emit": { "mode": "browsing", "context": "Browsing", "pageUrl": "{url}" }
   }
+}
+```
 
-  function poll() {
-    const data = scrape();
-    // Diff against lastSent; send only on meaningful changes
-    browser.runtime.sendMessage({
-      type: 'activity:update',
-      activityId: ACTIVITY_ID,
-      data,
-    }).catch(() => {});
-  }
+Rich example (DOM extraction, like Reddit posts):
 
-  setInterval(poll, POLL_MS);
-  window.addEventListener('popstate', () => { lastSent = null; poll(); });
-  window.addEventListener('unload', () => {
-    browser.runtime.sendMessage({ type: 'activity:clear', activityId: ACTIVITY_ID }).catch(() => {});
-  });
-  poll();
-})();
+```json
+{
+  "version": 2,
+  "pollMs": 2000,
+  "profiles": [
+    {
+      "id": "new-ui",
+      "when": { "selectorExists": ["shreddit-post"] },
+      "rules": [
+        {
+          "when": { "pathIncludes": "/comments/" },
+          "extract": {
+            "title": { "selectorAttr": { "selector": "shreddit-post", "attr": "post-title" } }
+          },
+          "require": ["title"],
+          "emit": { "title": "{title}", "pageUrl": "{url}" }
+        }
+      ]
+    }
+  ],
+  "default": { "emit": { "browsing": true, "browsingContext": "Browsing" } }
+}
 ```
 
 **Rules:**
 
-- Poll every ~2s; do not send duplicate data.
-- Handle SPA navigation (`popstate`, `hashchange`, site-specific events).
-- Clear on `unload`.
+- Use `"version": 2` for all new activities.
+- Wrap output in `"emit"` blocks; use `"default": { "emit": { ... } }` for fallbacks.
+- Add `changeDetection` to avoid spamming Discord on unchanged polls.
 - Never scrape secrets, passwords, or private message bodies unless the PR explicitly documents it and maintainers approve.
+- Validate locally: `npm run validate:scrapers` and `npm run test:engine`.
 
 ### 3. `native-host/activities/{id}/presence.js`
 
@@ -116,7 +151,7 @@ module.exports = {
   id:         'my-site',
   name:       'My Site',
   clientId:   'YOUR_DISCORD_APPLICATION_ID',
-  urlPattern: '*://example.com/*',
+  urlPattern: '*://www.example.com/*',
 
   formatPresence(data, syncr) {
     if (data.browsing) {
@@ -138,40 +173,30 @@ module.exports = {
 
 Copy from [`native-host/activities/_template/presence.js`](../native-host/activities/_template/presence.js), YouTube, Reddit, or Proton Mail.
 
-### 4. Registry (and manifest only for engine changes)
+### 4. Registry
 
-**`extension/activities/registry.json`:** add your ID to the `activities` array.
-
-**`extension/manifest.json`:** add a `content_scripts` entry for **bundled** activities only (`"scraper": "bundled"`). Remote activities skip manifest entries and use the dynamic injector instead. Bump `version` when the extension ships changes.
-
-**`metadata.json` required fields (v1.0.13+):**
+**`extension/activities/registry.json`:** add your ID to the `activities` array:
 
 ```json
-{
-  "origins": ["*://example.com/*"],
-  "scraper": "remote"
-}
+{ "activities": ["youtube-music", "youtube", "reddit", "proton-mail", "netflix", "my-site"] }
 ```
 
-- `"scraper": "remote"` — ships `scraper.json` on GitHub only (no new AMO for simple sites). See [`scraper-schema.md`](scraper-schema.md).
-- `"scraper": "bundled"` — uses `content-script.js` inside the extension (Netflix, Reddit, YouTube). Requires a new signed `.xpi` when scraper logic changes.
+Push to `main`. The popup and background script fetch this from GitHub and merge it with the bundled copy in the installed extension.
 
-When a user enables your activity, Firefox prompts for site access via `optional_permissions`.
+**Do not** add per-site entries to `extension/manifest.json`. **Do not** bump the extension version for a new activity unless you changed the engine itself.
 
 ---
 
 ## Case study: Reddit (full integration)
 
-Reddit is the reference for browsing mode + rich detail pages.
+Reddit uses **profiles** for new vs old Reddit, **extractors** for post metadata, and **helpers** for URL/thumbnail cleanup.
 
-### Scraping strategy
-
-| Page type | Detection | Data sent |
+| Page type | Scraper approach | Data sent |
 |---|---|---|
-| Post | URL `/r/.../comments/...` | `title`, `author`, `subreddit`, `score`, `comments`, `thumbnailUrl`, URLs |
-| Feed / subreddit / profile | Everything else on `/u/` paths | `{ browsing: true, browsingContext: "r/foo" }` |
+| Post | `pathIncludes: "/comments/"` + `shreddit-post` attributes / old Reddit selectors | `title`, `author`, `subreddit`, `score`, `comments`, `thumbnailUrl`, URLs |
+| Feed / subreddit / profile | `default` emit | `{ browsing: true, browsingContext: "r/foo" }` |
 
-New Reddit uses **`shreddit-post` HTML attributes** (`post-title`, `author`, `score`, etc.). Old Reddit uses classic DOM selectors. Both are supported in one content script.
+See [`extension/activities/reddit/scraper.json`](../extension/activities/reddit/scraper.json) and [`native-host/activities/reddit/presence.js`](../native-host/activities/reddit/presence.js).
 
 ### Presence strategy
 
@@ -183,29 +208,25 @@ New Reddit uses **`shreddit-post` HTML attributes** (`post-title`, `author`, `sc
 - Application ID in `presence.js` as `clientId`.
 - Assets: `reddit_logo` (large), `reading` (small).
 
-See [`extension/activities/reddit/`](../extension/activities/reddit/) and [`native-host/activities/reddit/`](../native-host/activities/reddit/) in the repo.
-
 ---
 
-## Case study: Proton Mail (privacy-first, remote scraper)
+## Case study: Proton Mail (privacy-first)
 
-Proton Mail only exposes **generic labels**:
+Proton Mail only exposes **generic labels** via URL and DOM-presence rules:
 
 - `"Drafting an email"`
 - `"Viewing an email"`
 - `"Browsing inbox"` / `"Browsing emails"`
 
-As of extension v1.0.13, the scraper is **`scraper.json` on GitHub** (`"scraper": "remote"`). The declarative engine reads URL/hash patterns and DOM selectors. It **never** reads subjects, senders, or body text.
+The scraper **never** reads subjects, senders, or body text. Use this pattern for email, banking, health, or messaging sites.
 
-Use this pattern for email, banking, health, or messaging sites.
-
-See [`extension/activities/proton-mail/`](../extension/activities/proton-mail/).
+See [`extension/activities/proton-mail/scraper.json`](../extension/activities/proton-mail/scraper.json).
 
 ---
 
 ## Contributor: local testing
 
-1. **Extension:** Firefox → `about:debugging` → Load Temporary Add-on → select `extension/manifest.json`.
+1. **Extension:** Firefox → `about:debugging` → Load Temporary Add-on → select `extension/manifest.json`. Requires **1.0.20+** (engine 2.0.0).
 2. **Host:** Install via Syncr Setup, or build locally:
    ```powershell
    cd native-host
@@ -214,8 +235,14 @@ See [`extension/activities/proton-mail/`](../extension/activities/proton-mail/).
    ```
    Copy `dist/syncr-host.exe` to `%LOCALAPPDATA%\Syncr\` (or run Setup).
 3. For **presence-only** edits, copy your `presence.js` to `%LOCALAPPDATA%\Syncr\activities\{id}\presence.js` and reconnect the host (popup Reconnect).
-4. Open the target site, enable the activity in the popup, confirm Discord updates.
-5. Test navigation: SPA route changes, back button, tab close, multiple activities at once.
+4. For **scraper.json** edits, save the file locally under `extension/activities/{id}/` and reload the target tab (the universal host loads bundled `scraper.json` first, then GitHub).
+5. Open the target site, enable the activity in the popup, confirm Discord updates.
+6. Test navigation: SPA route changes, back button, tab close, multiple activities at once.
+
+```powershell
+npm run validate:scrapers
+npm run test:engine
+```
 
 ---
 
@@ -223,13 +250,13 @@ See [`extension/activities/proton-mail/`](../extension/activities/proton-mail/).
 
 Include in the PR description:
 
-- [ ] Activity ID and target URLs
+- [ ] Activity ID and target URLs (`origins` in metadata)
 - [ ] What appears on Discord (screenshot)
 - [ ] Privacy: list every field scraped and shown
 - [ ] Discord Application ID used for testing
 - [ ] Rich Presence asset keys you uploaded
 - [ ] Manual test steps you ran
-- [ ] Whether an extension version bump is required (always yes for new content scripts)
+- [ ] Whether a **new XPI** is required (should be **no** for standard scraper + presence-only activities)
 
 ---
 
@@ -237,12 +264,13 @@ Include in the PR description:
 
 ### Code review
 
-- [ ] Activity ID consistent across all files (`metadata.json`, `presence.js`, registry, manifest, `ACTIVITY_ID` in content script).
-- [ ] Content script does not over-scrape or leak sensitive data.
-- [ ] `poll()` avoids spam; handles SPA navigation.
+- [ ] Activity ID consistent across all files (`metadata.json`, `presence.js`, `registry.json`).
+- [ ] `metadata.json` has `scraper: "remote"`, `origins`, and `minEngineVersion`.
+- [ ] `scraper.json` validates (`npm run validate:scrapers`).
+- [ ] Scraper does not over-scrape or leak sensitive data.
+- [ ] `changeDetection` present where polling would otherwise spam updates.
 - [ ] `presence.js` uses SDK; strings fit Discord limits (128 chars for details/state/name).
 - [ ] Buttons use `https://` URLs only (max 2 buttons).
-- [ ] `minExtensionVersion` set correctly in metadata.
 - [ ] Logo present and referenced in metadata.
 
 ### Discord review
@@ -253,7 +281,7 @@ Include in the PR description:
 
 ### Functional review
 
-- [ ] Test with temporary extension load + installed host.
+- [ ] Test with temporary extension load (1.0.20+) + installed host.
 - [ ] Toggle on/off in popup works.
 - [ ] Multi-activity priority behaves correctly if overlapping with YouTube etc.
 - [ ] Updates panel shows activity as installed/up to date after merge.
@@ -267,26 +295,34 @@ Releases are driven by [`update.ps1`](../update.ps1). You need `.env` with AMO J
 ### Decision tree
 
 ```
-Did the PR change extension/ (content script, manifest, popup)?
+Did the PR change the scraper engine or extension manifest/core?
 ├── YES → Full release (bump extension manifest version)
-└── NO  → Host-only possible if only presence.js / host core changed
+├── NO, only scraper.json / metadata / registry on GitHub → Push to main only (no XPI)
+└── NO, only presence.js → Host hot-update (optional version bump for visibility)
 ```
 
-### Full release (new or changed content scripts)
+### GitHub-only release (new or updated activity)
+
+1. Merge PR to `main` with:
+   - `extension/activities/{id}/metadata.json`
+   - `extension/activities/{id}/scraper.json`
+   - `native-host/activities/{id}/presence.js`
+   - Updated `extension/activities/registry.json`
+2. Users on extension **1.0.20+** get the new activity after:
+   - Popup refresh (registry from GitHub)
+   - **Check for updates** (downloads `presence.js` to the host)
+3. **No AMO release required.**
+
+### Full release (engine change, manifest change, popup/background fix)
 
 1. Merge PR to `main`.
-2. Bump `extension/manifest.json` version (e.g. `1.0.11` → `1.0.12`).
+2. Bump `extension/manifest.json` version (e.g. `1.0.22` → `1.0.23`).
 3. If host core or SDK changed, bump `native-host/version.json` too.
 4. Run:
    ```powershell
    .\update.ps1
    ```
-5. Script will:
-   - Sign extension via AMO (may wait for review)
-   - Build `syncr-host.exe` and Syncr Setup
-   - Update `updates.json` with XPI hash
-   - Commit, tag `v{version}`, push, upload GitHub Release assets
-6. Verify on GitHub Releases: `syncr.xpi`, `syncr-host.exe`, `Syncr-Setup-{version}.exe`.
+5. Script will sign the extension via AMO, build host/Setup, update `updates.json`, tag, and publish GitHub Release assets.
 
 ### Host-only release (`presence.js` or host bugfix, no extension change)
 
@@ -297,17 +333,18 @@ Did the PR change extension/ (content script, manifest, popup)?
    ```powershell
    .\update.ps1 -HostOnly
    ```
-   Or full `update.ps1` if you also need a new extension release.
 
 ### After release: what users get
 
 | Change | User experience |
 |---|---|
+| New/updated `scraper.json` or `metadata.json` on `main` | Works on next tab load (extension 1.0.20+) |
+| New `registry.json` entry on `main` | Popup picks up new activity on open |
 | New `presence.js` on `main` | Popup **Check for updates** downloads it; or auto on next host start |
 | New extension on AMO + `updates.json` | Firefox auto-updates extension (or manual XPI from Releases) |
 | New `syncr-host.exe` | Updates panel shows host update; download Setup or exe |
 
-Users do **not** need full Setup reinstall for presence-only activity updates.
+Users do **not** need full Setup reinstall for scraper or presence-only activity updates.
 
 ---
 
@@ -324,13 +361,13 @@ Contributors often test with their own Discord app. Before release:
 
 ## Maintainer: adding an activity without a contributor PR
 
-Follow the same file checklist as contributors. Reddit was added by:
+1. Add `metadata.json`, `scraper.json`, and logo under `extension/activities/{id}/`.
+2. Add `presence.js` under `native-host/activities/{id}/` with production `clientId`.
+3. Add the ID to `extension/activities/registry.json`.
+4. Push to `main`.
+5. Run **Check for updates** locally to pull `presence.js` to the host.
 
-1. Creating extension scraper + metadata + logo.
-2. Creating `presence.js` with production `clientId`.
-3. Updating `registry.json` and `manifest.json`.
-4. Bumping extension to `1.0.9` and host to `1.0.6`.
-5. Running `.\update.ps1` to publish.
+**No manifest bump. No XPI.** Only ship a new extension if the site needs a new engine primitive.
 
 ---
 
@@ -338,10 +375,14 @@ Follow the same file checklist as contributors. Reddit was added by:
 
 | Task | Command / location |
 |---|---|
+| Scraper schema | `docs/scraper-schema.md` |
+| Engine v2 spec | `docs/scraper-engine-v2-spec.md` |
 | SDK docs | `native-host/ACTIVITY_SDK.md` |
 | Presence template | `native-host/activities/_template/presence.js` |
 | Architecture | `docs/architecture.md` |
 | Host versions | `docs/host-changelog.md` |
+| Validate scrapers | `npm run validate:scrapers` |
+| Test engine | `npm run test:engine` |
 | Full publish | `.\update.ps1` |
 | Host-only publish | `.\update.ps1 -HostOnly` |
 | Build only (no git) | `.\update.ps1 -BuildOnly` |

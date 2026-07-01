@@ -1,6 +1,6 @@
-# Remote scraper schema
+# Remote scraper schema (Scraper Engine v2)
 
-Remote activities ship **`scraper.json`** on GitHub. The extension runs `activities/_runtime/universal.js` + **Scraper Engine v2** (`engineVersion` 2.0.0). No bundled `content-script.js`.
+All activities use **`scraper.json`** on GitHub. The extension runs `activities/_runtime/universal.js` + **Scraper Engine v2** (`engineVersion` 2.0.0 in `extension/engine-version.json`). There are no bundled `content-script.js` files.
 
 Full spec: [`scraper-engine-v2-spec.md`](scraper-engine-v2-spec.md)
 
@@ -8,9 +8,12 @@ Full spec: [`scraper-engine-v2-spec.md`](scraper-engine-v2-spec.md)
 
 ## metadata.json
 
+Every remote activity requires:
+
 ```json
 {
   "id": "my-site",
+  "name": "My Site",
   "scraper": "remote",
   "origins": ["*://www.example.com/*"],
   "fetchOrigins": ["https://www.example.com"],
@@ -21,21 +24,16 @@ Full spec: [`scraper-engine-v2-spec.md`](scraper-engine-v2-spec.md)
 | Field | Purpose |
 |---|---|
 | `scraper` | Must be `"remote"` |
-| `origins` | URL patterns for activity resolution |
-| `fetchOrigins` | Allowlist for `fetchJson` (optional) |
-| `minEngineVersion` | Minimum `engine-version.json` in the extension |
+| `origins` | URL patterns for activity resolution (include bare host if needed) |
+| `fetchOrigins` | Allowlist for `fetchJson` in scraper rules (optional) |
+| `minEngineVersion` | Minimum engine version in the installed extension |
+| `minExtensionVersion` | Deprecated alias — use `minEngineVersion` |
 
 Add the ID to `extension/activities/registry.json` and ship `native-host/activities/{id}/presence.js`.
 
 ---
 
-## scraper.json v1 (legacy)
-
-Proton Mail uses v1: static `when` + `emit`. Engine runs v1 via compatibility shim when `"version": 1`.
-
----
-
-## scraper.json v2
+## scraper.json structure
 
 ```json
 {
@@ -48,27 +46,72 @@ Proton Mail uses v1: static `when` + `emit`. Engine runs v1 via compatibility sh
     "playbackFields": { "time": "currentTime", "paused": "paused" }
   },
   "profiles": [],
-  "rules": [
-    {
-      "when": { "pathIncludes": "/watch" },
-      "extract": {
-        "title": { "selectorText": "h1" },
-        "playback": { "video": { "selector": "video", "minReadyState": 2 } }
-      },
-      "require": ["title", "playback"],
-      "emit": {
-        "title": "{title}",
-        "currentTime": "{playback.currentTime}",
-        "paused": "{playback.paused}"
-      }
-    }
-  ],
+  "rules": [],
   "fallback": { "emit": { "browsing": true } },
   "default": { "emit": { "browsing": true } }
 }
 ```
 
-### Extractor primitives
+| Top-level key | Purpose |
+|---|---|
+| `version` | Must be `2` for new activities |
+| `pollMs` | Poll interval (minimum 1000 ms enforced by engine) |
+| `events` | Extra window events that reset state and re-poll |
+| `changeDetection` | Dedup updates before sending to background |
+| `profiles` | Branch rules by site variant (e.g. old vs new Reddit) |
+| `rules` | Ordered list of `when` + optional `extract` + `emit` |
+| `fallback` / `default` | Payload when no rule matches |
+
+Always wrap output in `"emit"` blocks. Use `"default": { "emit": { ... } }` for fallbacks.
+
+---
+
+## Rule shape
+
+```json
+{
+  "when": { "pathIncludes": "/watch" },
+  "extract": {
+    "title": { "selectorText": "h1" },
+    "playback": { "video": { "selector": "video", "minReadyState": 2 } }
+  },
+  "require": ["title", "playback"],
+  "emit": {
+    "title": "{title}",
+    "currentTime": "{playback.currentTime}",
+    "paused": "{playback.paused}",
+    "pageUrl": "{url}"
+  }
+}
+```
+
+| Rule key | Purpose |
+|---|---|
+| `when` | Conditions — all must pass (see below) |
+| `extract` | Named fields added to context |
+| `require` | Skip rule if any listed field is empty |
+| `run` | Run a helper; helper return value becomes full payload |
+| `emit` | Map context into activity data sent to host |
+
+---
+
+## `when` conditions
+
+| Condition | Example |
+|---|---|
+| `hostnameIncludes` | `"proton"` or `["mail.", "account."]` |
+| `pathIncludes` | `"/inbox"` or `["/all-mail", "/almost-all-mail"]` |
+| `pathRegex` | `"/watch/(\\d+)"` with optional `pathRegexFlags` |
+| `pathSegmentAfter` | `{ "inbox": 1 }` — segment after folder name (viewing message) |
+| `searchParam` | `{ "v": "*" }` |
+| `hashParam` / `hashParamAny` | Hash routing (Proton Mail) |
+| `selectorExists` / `selectorNotExists` | DOM presence |
+| `selectorTextIncludes` | `{ "selector": "h1", "includes": "Draft" }` |
+| `any` / `all` / `not` | Combine conditions |
+
+---
+
+## Extractor primitives
 
 | Primitive | Example |
 |---|---|
@@ -80,14 +123,18 @@ Proton Mail uses v1: static `when` + `emit`. Engine runs v1 via compatibility sh
 | `metaContent` | `{ "metaContent": "og:image" }` |
 | `title` | `{ "title": { "stripSuffix": " - YouTube" } }` |
 | `video` | `{ "video": { "selector": "video", "minReadyState": 2 } }` |
-| `coalesce` | `{ "coalesce": [ ... ] }` |
+| `coalesce` | `{ "coalesce": [ ... ] }` — first non-empty wins |
 | `split` | `{ "split": { "source": "{x}", "sep": " • ", "index": 0 } }` |
 | `regexReplace` | `{ "regexReplace": { "source": "{x}", "pattern": "...", "replacement": "" } }` |
 | `template` | `{ "template": "https://i.ytimg.com/vi/{videoId}/mqdefault.jpg" }` |
 | `fetchJson` | `{ "fetchJson": { "url": "...", "credentials": "include", "cacheKey": "k:{id}" } }` |
-| `helper` | `{ "helper": "netflix.buildWatching", "args": { "meta": "{meta}" } }` |
+| `helper` | `{ "helper": "reddit.subredditFromPath" }` |
 
-### `run` (helper output as full payload)
+Template placeholders in `emit`: `{field}`, `{nested.field}`, `{url}`, `{origin}`, `{path}`.
+
+---
+
+## `run` (helper output as full payload)
 
 ```json
 {
@@ -96,26 +143,41 @@ Proton Mail uses v1: static `when` + `emit`. Engine runs v1 via compatibility sh
 }
 ```
 
+Built-in helpers live in `extension/activities/_runtime/engine/helpers.js` (Reddit, Netflix, etc.). New helpers require an engine/XPI update.
+
 ---
 
-## What needs a new AMO build
+## scraper.json v1 (legacy compat)
 
-| Change | New AMO? |
+Engine version 1 scrapers still run via a compatibility shim in `evaluate.js` when `"version": 1` or version is omitted. **All current activities use version 2.** New contributions should use `"version": 2` with `default.emit` wrappers.
+
+---
+
+## What needs a new XPI
+
+| Change | New XPI? |
 |---|---|
 | New / updated `scraper.json` on GitHub | **No** |
-| New `presence.js` on GitHub | **No** |
-| New `registry.json` entry | **No** |
-| New engine primitive or engine bugfix | **Yes** |
+| New `metadata.json` / registry entry | **No** |
+| New `presence.js` on GitHub | **No** (host hot-update) |
+| New extractor, helper, or engine bugfix | **Yes** |
+| Firefox manifest / permission change | **Yes** |
 
 ---
 
-## Examples
+## Examples in repo
 
 | Activity | File |
 |---|---|
-| Proton Mail (v1) | [`proton-mail/scraper.json`](../extension/activities/proton-mail/scraper.json) |
+| Proton Mail (privacy, URL/DOM rules) | [`proton-mail/scraper.json`](../extension/activities/proton-mail/scraper.json) |
 | YouTube | [`youtube/scraper.json`](../extension/activities/youtube/scraper.json) |
-| Reddit | [`reddit/scraper.json`](../extension/activities/reddit/scraper.json) |
-| Netflix | [`netflix/scraper.json`](../extension/activities/netflix/scraper.json) |
+| YouTube Music | [`youtube-music/scraper.json`](../extension/activities/youtube-music/scraper.json) |
+| Reddit (profiles + extractors) | [`reddit/scraper.json`](../extension/activities/reddit/scraper.json) |
+| Netflix (fetchJson + helpers) | [`netflix/scraper.json`](../extension/activities/netflix/scraper.json) |
 
-Validate locally: `npm run validate:scrapers`
+Validate locally:
+
+```powershell
+npm run validate:scrapers
+npm run test:engine
+```

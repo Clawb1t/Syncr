@@ -1,16 +1,32 @@
-{
-  "id":           "reddit",
-  "name":         "Reddit",
-  "description":  "Tracks posts and browsing on reddit.com",
-  "category":     "Social",
-  "icon":         "🔴",
-  "logo":         "logo.png",
-  "version":      "1.0.0",
-  "author":       "Syncr Contributors",
-  "urlPattern":   "*://www.reddit.com/*",
-  "origins":      ["*://www.reddit.com/*", "*://old.reddit.com/*"],
-  "scraper":      "remote",
-  "minEngineVersion": "2.0.0",
-  "buttonLabel":  "View on Reddit",
-  "activityType": "WATCHING"
-}
+{
+
+  "id":           "reddit",
+
+  "name":         "Reddit",
+
+  "description":  "Tracks posts and browsing on reddit.com",
+
+  "category":     "Social",
+
+  "icon":         "🔴",
+
+  "logo":         "logo.png",
+
+  "version":      "1.0.0",
+
+  "author":       "Syncr Contributors",
+
+  "urlPattern":   "*://www.reddit.com/*",
+
+  "origins":      ["*://www.reddit.com/*", "*://old.reddit.com/*"],
+
+  "scraper":      "remote",
+
+  "minEngineVersion": "2.0.0",
+
+  "buttonLabel":  "View on Reddit",
+
+  "activityType": "WATCHING"
+
+}
+
