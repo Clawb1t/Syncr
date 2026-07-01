@@ -101,7 +101,7 @@ Syncr/
 
 ## Contributing
 
-Contributions are welcome  especially new activities. Open an issue to discuss an idea, or open a pull request with a working activity.
+Contributions are welcome, especially new activities. Open an issue to discuss an idea, or open a pull request with a working activity.
 
 ### What you can contribute
 
@@ -114,13 +114,13 @@ Contributions are welcome  especially new activities. Open an issue to discuss a
 ### Before you start
 
 1. **Fork** the repo and create a branch.
-2. **Pick an activity ID**  lowercase slug, e.g. `reddit`, `proton-mail`.
-3. **Create a Discord application** at [discord.com/developers](https://discord.com/developers/applications) for your activity (one app per site). Copy the **Application ID**  you'll put it in `presence.js` as `clientId`. You can use your own app for testing; the maintainer may use an official app ID on release.
+2. **Pick an activity ID**: lowercase slug, e.g. `reddit`, `proton-mail`.
+3. **Create a Discord application** at [discord.com/developers](https://discord.com/developers/applications) for your activity (one app per site). Copy the **Application ID**; you'll put it in `presence.js` as `clientId`. You can use your own app for testing; the maintainer may use an official app ID on release.
 4. **Upload Rich Presence art assets** under **Rich Presence → Art Assets** (not Activities → Art Assets). Asset keys must match what you reference in `presence.js` (e.g. `reddit_logo`).
 
 See [`native-host/ACTIVITY_SDK.md`](native-host/ACTIVITY_SDK.md) for the full presence API and [`native-host/activities/_template/presence.js`](native-host/activities/_template/presence.js) for a starter template.
 
-### Adding a new activity  checklist
+### Adding a new activity: checklist
 
 - [ ] `extension/activities/{id}/metadata.json`
 - [ ] `extension/activities/{id}/content-script.js`
@@ -136,17 +136,17 @@ See [`native-host/ACTIVITY_SDK.md`](native-host/ACTIVITY_SDK.md) for the full pr
 
 Every content script follows the same structure:
 
-1. **Constants**  `ACTIVITY_ID`, `POLL_MS` (typically 2000)
-2. **`scrape()`**  read the DOM / URL; return a data object or `{ browsing: true }`
-3. **`poll()`**  call `scrape()`, diff against `lastSent`, only send when something meaningful changed
-4. **Messages**  `browser.runtime.sendMessage({ type: 'activity:update', activityId, data })` or `activity:clear`
-5. **Lifecycle**  `setInterval(poll)`, reset on SPA navigation (`popstate`, `hashchange`, site-specific events), clear on `unload`
+1. **Constants**: `ACTIVITY_ID`, `POLL_MS` (typically 2000)
+2. **`scrape()`**: read the DOM / URL; return a data object or `{ browsing: true }`
+3. **`poll()`**: call `scrape()`, diff against `lastSent`, only send when something meaningful changed
+4. **Messages**: `browser.runtime.sendMessage({ type: 'activity:update', activityId, data })` or `activity:clear`
+5. **Lifecycle**: `setInterval(poll)`, reset on SPA navigation (`popstate`, `hashchange`, site-specific events), clear on `unload`
 
-Do not spam Discord  only send updates when title, mode, or other tracked fields change.
+Do not spam Discord; only send updates when title, mode, or other tracked fields change.
 
 ### Privacy guidelines
 
-- **Default to the minimum**  only scrape fields you need for presence text/images.
+- **Default to the minimum**: only scrape fields you need for presence text/images.
 - **Sensitive sites** (email, banking, health, DMs): use generic labels only, like Proton Mail does (`"Viewing an email"`, never subjects or senders).
 - **Never** send passwords, tokens, or private message bodies.
 - Call out in your PR exactly what appears on Discord.
@@ -168,7 +168,7 @@ Reddit is a good reference for a full integration with browsing mode, rich post 
 | `extension/activities/registry.json` | Added `"reddit"` |
 | `extension/manifest.json` | Content script for `www.reddit.com` and `old.reddit.com` |
 
-### Step 1  metadata.json
+### Step 1: metadata.json
 
 Describes the activity for the popup and documents the minimum extension version:
 
@@ -184,7 +184,7 @@ Describes the activity for the popup and documents the minimum extension version
 }
 ```
 
-### Step 2  content-script.js (scraping)
+### Step 2: content-script.js (scraping)
 
 Reddit has two UIs (new Reddit with `shreddit-post` web components, and old Reddit). The scraper branches on that, then decides the **mode**:
 
@@ -193,18 +193,18 @@ Reddit has two UIs (new Reddit with `shreddit-post` web components, and old Redd
 | Post (`/r/.../comments/...`) | `title`, `author`, `subreddit`, `score`, `comments`, `postType`, `thumbnailUrl`, URLs |
 | Feed / subreddit / profile / search | `{ browsing: true, browsingContext: "r/programming" }` etc. |
 
-On new Reddit, post metadata comes from **`shreddit-post` HTML attributes** (`post-title`, `author`, `score`, `comment-count`, …)  no fragile nested div scraping. Thumbnails use post attributes or `og:image`.
+On new Reddit, post metadata comes from **`shreddit-post` HTML attributes** (`post-title`, `author`, `score`, `comment-count`, …). No fragile nested div scraping. Thumbnails use post attributes or `og:image`.
 
 The poll loop only sends when `title`, `author`, `subreddit`, `score`, or `comments` change, or when switching between browsing and post mode. URL changes reset state via `popstate` and by comparing `location.href` each tick.
 
-### Step 3  presence.js (Discord)
+### Step 3: presence.js (Discord)
 
 The host receives the scraped `data` object and builds presence with the Syncr SDK:
 
 - **Browsing** → `syncr.browsing()` with `"Browsing r/foo"` or `"Browsing Reddit"`
 - **Post** → `.watching(title)` with details `r/subreddit · u/author`, state `↑ score · N comments`, thumbnail, two buttons (post + subreddit)
 
-Each activity needs its own Discord **Application ID** (`clientId`). Reddit uses a dedicated app  the presence shows as "Reddit" on your profile, not "Syncr".
+Each activity needs its own Discord **Application ID** (`clientId`). Reddit uses a dedicated app, so the presence shows as "Reddit" on your profile, not "Syncr".
 
 Rich Presence assets (under **Rich Presence → Art Assets**, not Activities):
 
@@ -213,15 +213,15 @@ Rich Presence assets (under **Rich Presence → Art Assets**, not Activities):
 | `reddit_logo` | Large image fallback |
 | `reading` | Small status icon |
 
-### Step 4  wire it up
+### Step 4: wire it up
 
-**registry.json**  add the ID:
+**registry.json**: add the ID:
 
 ```json
 { "activities": ["youtube-music", "youtube", "reddit"] }
 ```
 
-**manifest.json**  register the content script:
+**manifest.json**: register the content script:
 
 ```json
 {
@@ -235,9 +235,9 @@ Rich Presence assets (under **Rich Presence → Art Assets**, not Activities):
 
 | On Reddit | Discord presence |
 |---|---|
-| Home feed | Watching **Reddit**  *Browsing Reddit* |
-| `r/programming` | Watching **Reddit**  *Browsing r/programming* |
-| A post | Watching **Post title**  *r/sub · u/author*  ↑ 1.2k · 42 comments |
+| Home feed | Watching **Reddit**, *Browsing Reddit* |
+| `r/programming` | Watching **Reddit**, *Browsing r/programming* |
+| A post | Watching **Post title**, *r/sub · u/author*, ↑ 1.2k · 42 comments |
 
 ---
 
@@ -248,11 +248,11 @@ Rich Presence assets (under **Rich Presence → Art Assets**, not Activities):
 3. Open a PR describing:
    - What site/activity you added or changed
    - What appears on Discord (screenshot helps)
-   - Privacy notes  what is and isn't scraped
+   - Privacy notes: what is and isn't scraped
    - Discord Application ID used for testing (maintainer may swap for the official app)
 4. A maintainer reviews, merges, and publishes a release.
 
-You do **not** need AMO signing credentials or GitHub release tokens to contribute  maintainers handle publishing via `update.ps1`.
+You do **not** need AMO signing credentials or GitHub release tokens to contribute. Maintainers handle publishing via `update.ps1`.
 
 ### Local development (contributors)
 
@@ -260,7 +260,7 @@ You do **not** need AMO signing credentials or GitHub release tokens to contribu
 2. Install/run the native host via **Syncr Setup** or build `native-host` with `npm run build`.
 3. Enable your activity in the popup and visit the target site.
 
-For presence-only changes, you can edit `native-host/activities/{id}/presence.js` locally and restart the host  no extension rebuild needed.
+For presence-only changes, you can edit `native-host/activities/{id}/presence.js` locally and restart the host. No extension rebuild needed.
 
 ---
 
@@ -282,13 +282,24 @@ Users get host activity updates through **Check for updates** in the popup witho
 
 ## Further reading
 
-- [`native-host/ACTIVITY_SDK.md`](native-host/ACTIVITY_SDK.md)  presence builder API, field limits, Discord setup
-- [`native-host/activities/_template/presence.js`](native-host/activities/_template/presence.js)  copy-paste presence starter
-- [`extension/activities/reddit/`](extension/activities/reddit/)  full Reddit content script example
-- [`extension/activities/proton-mail/`](extension/activities/proton-mail/)  privacy-first generic activity example
+- [`native-host/ACTIVITY_SDK.md`](native-host/ACTIVITY_SDK.md): presence builder API, field limits, Discord setup
+- [`native-host/activities/_template/presence.js`](native-host/activities/_template/presence.js): copy-paste presence starter
+- [`extension/activities/reddit/`](extension/activities/reddit/): full Reddit content script example
+- [`extension/activities/proton-mail/`](extension/activities/proton-mail/): privacy-first generic activity example
 
 ---
 
 ## Open source
 
 Syncr is open source. Issues, activity ideas, and pull requests are welcome on [GitHub](https://github.com/Clawb1t/Syncr).
+
+### Documentation
+
+| Doc | Contents |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | How the extension, native host, and Discord IPC work together |
+| [`docs/activities.md`](docs/activities.md) | Creating activities, review checklist, release process for maintainers |
+| [`docs/host-changelog.md`](docs/host-changelog.md) | What each native host version includes |
+| [`native-host/ACTIVITY_SDK.md`](native-host/ACTIVITY_SDK.md) | Presence builder API reference |
+
+The README also has a shorter [contributing overview](#contributing) and [Reddit case study](#case-study-the-reddit-activity).
