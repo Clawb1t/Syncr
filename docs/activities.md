@@ -142,7 +142,7 @@ Copy from [`native-host/activities/_template/presence.js`](../native-host/activi
 
 **`extension/activities/registry.json`:** add your ID to the `activities` array.
 
-**`extension/manifest.json`:** do **not** add `content_scripts` for new activities (v1.0.13+). The background injector handles site access. Only bump `manifest.json` `version` when the extension engine itself changes.
+**`extension/manifest.json`:** add a `content_scripts` entry for **bundled** activities only (`"scraper": "bundled"`). Remote activities skip manifest entries and use the dynamic injector instead. Bump `version` when the extension ships changes.
 
 **`metadata.json` required fields (v1.0.13+):**
 
