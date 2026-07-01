@@ -9,6 +9,7 @@ const GITHUB_API         = 'https://api.github.com/repos/Clawb1t/Syncr';
 const RELEASES_URL       = 'https://github.com/Clawb1t/Syncr/releases/latest';
 const REGISTRY_CACHE_TTL = 5 * 60 * 1000; // soft cache — always revalidates in background
 const EXT_VERSION        = browser.runtime.getManifest().version;
+const DYNAMIC_LOADER_VER = '1.0.13';
 
 let BUNDLED_ACTIVITY_IDS = [];
 let HOST_ACTIVITY_STATUS   = [];
@@ -100,6 +101,38 @@ async function fetchActivityMeta(id) {
   }
 }
 
+function supportsDynamicLoader() {
+  return semverGte(EXT_VERSION, DYNAMIC_LOADER_VER);
+}
+
+function getActivityOrigins(meta) {
+  if (meta?.origins?.length) return meta.origins;
+  if (meta?.urlPattern) return [meta.urlPattern];
+  return [];
+}
+
+async function activityHasPermission(meta) {
+  const origins = getActivityOrigins(meta);
+  if (!origins.length) return true;
+  if (!supportsDynamicLoader()) return true;
+  try {
+    return await browser.permissions.contains({ origins });
+  } catch {
+    return false;
+  }
+}
+
+async function requestActivityPermission(meta) {
+  const origins = getActivityOrigins(meta);
+  if (!origins.length) return true;
+  try {
+    if (await browser.permissions.contains({ origins })) return true;
+    return await browser.permissions.request({ origins });
+  } catch {
+    return false;
+  }
+}
+
 function mergeRegistryIds(remoteIds, bundledIds) {
   return [...new Set([...(remoteIds ?? []), ...bundledIds])];
 }
@@ -108,9 +141,18 @@ function enrichActivityMeta(meta, bundledIds, hostStatus, remoteExtVersion) {
   const host       = (hostStatus ?? []).find(s => s.id === meta.id);
   const inBundle   = bundledIds.includes(meta.id);
   const minExt     = meta.minExtensionVersion;
-  const extOk      = inBundle && (!minExt || semverGte(EXT_VERSION, minExt));
+  const isRemote   = meta.scraper === 'remote';
+  const dynamic    = supportsDynamicLoader();
   const hostReady  = !!(host?.installed && host?.upToDate);
   const hostKnown  = hostStatus?.length > 0;
+
+  let extOk;
+  if (dynamic) {
+    extOk = isRemote || inBundle;
+    if (minExt && semverGt(minExt, EXT_VERSION)) extOk = false;
+  } else {
+    extOk = inBundle && (!minExt || semverGte(EXT_VERSION, minExt));
+  }
 
   let lockReason = null;
   let lockAction = null;
@@ -130,9 +172,19 @@ function enrichActivityMeta(meta, bundledIds, hostStatus, remoteExtVersion) {
     _extensionReady:  extOk,
     _hostReady:       hostReady,
     _hostKnown:       hostKnown,
+    _isRemote:        isRemote,
     _lockReason:      lockReason,
     _lockAction:      lockAction,
+    _hasPermission:   true,
   };
+}
+
+async function attachPermissionFlags(metas) {
+  if (!supportsDynamicLoader()) return metas;
+  return Promise.all(metas.map(async m => ({
+    ...m,
+    _hasPermission: await activityHasPermission(m),
+  })));
 }
 
 function enrichAllMetas(metas, bundledIds, hostStatus, remoteExtVersion) {
@@ -143,7 +195,8 @@ function enrichAllMetas(metas, bundledIds, hostStatus, remoteExtVersion) {
 
 async function fetchRegistryMetas(allIds, bundledIds) {
   const metas = await Promise.all(allIds.map(id => fetchActivityMeta(id)));
-  return enrichAllMetas(metas, bundledIds, HOST_ACTIVITY_STATUS, lastRemoteUpdateInfo?.extensionVersion);
+  const enriched = enrichAllMetas(metas, bundledIds, HOST_ACTIVITY_STATUS, lastRemoteUpdateInfo?.extensionVersion);
+  return attachPermissionFlags(enriched);
 }
 
 async function saveRegistryCache(metas, allIds) {
@@ -170,12 +223,12 @@ async function loadActivityRegistry({ background = false } = {}) {
     && Date.now() - cache.ts < REGISTRY_CACHE_TTL;
 
   if (!background && cacheValid) {
-    ACTIVITY_META = enrichAllMetas(
+    ACTIVITY_META = await attachPermissionFlags(enrichAllMetas(
       cache.metas,
       bundledIds,
       HOST_ACTIVITY_STATUS,
       lastRemoteUpdateInfo?.extensionVersion,
-    );
+    ));
     refreshRegistryInBackground(bundledIds);
     return;
   }
@@ -203,27 +256,27 @@ async function refreshRegistryInBackground(bundledIds) {
     }
 
     const before = ACTIVITY_META.map(a => `${a.id}:${a._ready}:${a._lockReason}`).join('|');
-    ACTIVITY_META = enrichAllMetas(
+    ACTIVITY_META = await attachPermissionFlags(enrichAllMetas(
       ACTIVITY_META,
       bundledIds,
       HOST_ACTIVITY_STATUS,
       lastRemoteUpdateInfo?.extensionVersion,
-    );
+    ));
     const after = ACTIVITY_META.map(a => `${a.id}:${a._ready}:${a._lockReason}`).join('|');
     if (before !== after) renderActivities(searchInput?.value || '');
   } catch {}
 }
 
-function applyHostActivityStatus(hostStatus) {
+async function applyHostActivityStatus(hostStatus) {
   if (!hostStatus?.length) return false;
   HOST_ACTIVITY_STATUS = hostStatus;
   const before = ACTIVITY_META.map(a => `${a.id}:${a._ready}`).join(',');
-  ACTIVITY_META = enrichAllMetas(
+  ACTIVITY_META = await attachPermissionFlags(enrichAllMetas(
     ACTIVITY_META,
     BUNDLED_ACTIVITY_IDS,
     HOST_ACTIVITY_STATUS,
     lastRemoteUpdateInfo?.extensionVersion,
-  );
+  ));
   const after = ACTIVITY_META.map(a => `${a.id}:${a._ready}`).join(',');
   return before !== after;
 }
@@ -342,6 +395,15 @@ async function saveDisabled() {
 }
 
 async function setActivityEnabled(id, enabled) {
+  const meta = ACTIVITY_META.find(a => a.id === id);
+
+  if (enabled && meta) {
+    const granted = await requestActivityPermission(meta);
+    if (!granted) return false;
+    await browser.runtime.sendMessage({ type: 'activity:permissionChanged', activityId: id }).catch(() => {});
+    await browser.runtime.sendMessage({ type: 'activity:resyncTabs' }).catch(() => {});
+  }
+
   if (enabled) {
     disabledActivities.delete(id);
   } else {
@@ -352,6 +414,8 @@ async function setActivityEnabled(id, enabled) {
   }
   await saveDisabled();
   await browser.runtime.sendMessage({ type: 'activity:setEnabled', activityId: id, enabled });
+  if (meta) meta._hasPermission = enabled ? await activityHasPermission(meta) : meta._hasPermission;
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -716,9 +780,34 @@ function renderActivities(filter = '') {
       }
       const enabled = e.target.checked;
       const card    = activitiesList.querySelector(`.activity-card[data-id="${id}"]`);
+      if (enabled) {
+        const ok = await setActivityEnabled(id, true);
+        if (!ok) {
+          e.target.checked = false;
+          if (card) card.classList.add('is-disabled');
+          return;
+        }
+      } else {
+        await setActivityEnabled(id, false);
+      }
       if (card) card.classList.toggle('is-disabled', !enabled);
-      await setActivityEnabled(id, enabled);
       if (!enabled) renderNowPlaying(null, null);
+      renderActivities(searchInput.value);
+    });
+  });
+
+  activitiesList.querySelectorAll('[data-allow-permission]').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.preventDefault();
+      const id   = btn.dataset.allowPermission;
+      const meta = ACTIVITY_META.find(a => a.id === id);
+      if (!meta) return;
+      const granted = await requestActivityPermission(meta);
+      if (!granted) return;
+      meta._hasPermission = true;
+      await browser.runtime.sendMessage({ type: 'activity:permissionChanged', activityId: id }).catch(() => {});
+      await browser.runtime.sendMessage({ type: 'activity:resyncTabs' }).catch(() => {});
+      renderActivities(searchInput.value);
     });
   });
 
@@ -763,6 +852,8 @@ function buildCard(meta) {
     } else {
       updateHint = `<div class="ac-update-hint">${esc(meta._lockReason)}</div>`;
     }
+  } else if (meta._ready && isEnabled && meta._hasPermission === false) {
+    updateHint = `<div class="ac-update-hint">Site access required · <button type="button" class="ac-update-link" data-allow-permission="${esc(meta.id)}">Allow access</button></div>`;
   }
 
   return `
@@ -864,7 +955,9 @@ async function syncState() {
     if (!state) return;
     currentState = state;
 
-    applyHostActivityStatus(state.updateInfo?.activityStatus ?? []);
+    if (await applyHostActivityStatus(state.updateInfo?.activityStatus ?? [])) {
+      renderActivities(searchInput.value);
+    }
 
     setStatus(state.connected ? 'connected' : 'disconnected', state.connected ? null : state.lastError);
     renderUpdateBanner(state.updateInfo ?? null);

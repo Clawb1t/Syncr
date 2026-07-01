@@ -9,6 +9,8 @@
   "version":      "1.0.0",
   "author":       "Syncr Contributors",
   "urlPattern":   "*://www.reddit.com/*",
+  "origins":      ["*://www.reddit.com/*", "*://old.reddit.com/*"],
+  "scraper":      "bundled",
   "buttonLabel":  "View on Reddit",
   "activityType": "WATCHING"
 }

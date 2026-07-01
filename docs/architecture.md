@@ -142,10 +142,24 @@ Each activity card checks:
 
 | Check | Meaning |
 |---|---|
-| ID in bundled registry + `minExtensionVersion` | Extension has the content script |
+| Bundled scraper, remote scraper, or `minExtensionVersion` | Extension can run the activity |
+| `browser.permissions.contains` for `origins` | User granted site access |
 | Host `activityStatus` installed + upToDate | `presence.js` is on disk and matches GitHub |
 
-Locked activities show why (extension update vs host update) and link to the fix.
+Locked activities show why (extension update vs host update) and link to the fix. Enabled activities without permission show **Allow access**.
+
+### Dynamic activity injection (v1.0.13+)
+
+**Location:** `extension/background/activity-injector.js`
+
+There are no per-site `content_scripts` in the manifest. Instead:
+
+1. User enables an activity in the popup → `browser.permissions.request({ origins })`.
+2. On tab load, the injector matches the URL against enabled activities' `origins` from GitHub `metadata.json`.
+3. **Bundled** (`scraper: "bundled"`): injects `activities/{id}/content-script.js`.
+4. **Remote** (`scraper: "remote"`): injects `activities/_runtime/runner.js`, which fetches `scraper.json` from GitHub.
+
+See [`docs/scraper-schema.md`](scraper-schema.md).
 
 ### Updates panel
 

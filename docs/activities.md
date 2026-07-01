@@ -12,15 +12,18 @@ An activity is a site integration (e.g. Reddit, Proton Mail). It has two parts:
 
 | Part | Location | Runs in | Ships via |
 |---|---|---|---|
-| **Scraper** | `extension/activities/{id}/content-script.js` | Firefox on matching URLs | Signed extension `.xpi` |
+| **Scraper (bundled)** | `extension/activities/{id}/content-script.js` | Firefox on matching URLs (injected at runtime) | Signed extension `.xpi` (complex sites) |
+| **Scraper (remote)** | `extension/activities/{id}/scraper.json` | Firefox on matching URLs (declarative engine) | GitHub `main` (no new AMO) |
 | **Presence formatter** | `native-host/activities/{id}/presence.js` | `syncr-host.exe` | GitHub `main` (hot-update) or new host exe |
 
 Plus UI metadata and branding:
 
-- `extension/activities/{id}/metadata.json`
+- `extension/activities/{id}/metadata.json` (must include `origins` and `scraper`: `"remote"` or `"bundled"`)
 - `extension/activities/{id}/logo.png` or `logo.svg`
 - Registry entry in `extension/activities/registry.json`
-- Manifest entry in `extension/manifest.json`
+- **No** per-site `content_scripts` entry in `manifest.json` (extension v1.0.13+ injects dynamically)
+
+Site access is requested in the popup when the user enables an activity (`browser.permissions.request`).
 
 ---
 
@@ -135,21 +138,25 @@ module.exports = {
 
 Copy from [`native-host/activities/_template/presence.js`](../native-host/activities/_template/presence.js), YouTube, Reddit, or Proton Mail.
 
-### 4. Registry and manifest
+### 4. Registry (and manifest only for engine changes)
 
 **`extension/activities/registry.json`:** add your ID to the `activities` array.
 
-**`extension/manifest.json`:** add a `content_scripts` entry:
+**`extension/manifest.json`:** do **not** add `content_scripts` for new activities (v1.0.13+). The background injector handles site access. Only bump `manifest.json` `version` when the extension engine itself changes.
+
+**`metadata.json` required fields (v1.0.13+):**
 
 ```json
 {
-  "matches": ["*://example.com/*"],
-  "js": ["activities/my-site/content-script.js"],
-  "run_at": "document_idle"
+  "origins": ["*://example.com/*"],
+  "scraper": "remote"
 }
 ```
 
-Bump `manifest.json` `version` for any extension change (maintainer does this at release if you forget).
+- `"scraper": "remote"` — ships `scraper.json` on GitHub only (no new AMO for simple sites). See [`scraper-schema.md`](scraper-schema.md).
+- `"scraper": "bundled"` — uses `content-script.js` inside the extension (Netflix, Reddit, YouTube). Requires a new signed `.xpi` when scraper logic changes.
+
+When a user enables your activity, Firefox prompts for site access via `optional_permissions`.
 
 ---
 
@@ -180,7 +187,7 @@ See [`extension/activities/reddit/`](../extension/activities/reddit/) and [`nati
 
 ---
 
-## Case study: Proton Mail (privacy-first)
+## Case study: Proton Mail (privacy-first, remote scraper)
 
 Proton Mail only exposes **generic labels**:
 
@@ -188,7 +195,7 @@ Proton Mail only exposes **generic labels**:
 - `"Viewing an email"`
 - `"Browsing inbox"` / `"Browsing emails"`
 
-The content script detects compose UI, message view layout, and URL/hash patterns. It **never** reads subjects, senders, or body text.
+As of extension v1.0.13, the scraper is **`scraper.json` on GitHub** (`"scraper": "remote"`). The declarative engine reads URL/hash patterns and DOM selectors. It **never** reads subjects, senders, or body text.
 
 Use this pattern for email, banking, health, or messaging sites.
 

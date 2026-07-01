@@ -9,6 +9,8 @@
   "version":      "1.0.0",
   "author":       "Syncr Contributors",
   "urlPattern":   "*://www.netflix.com/*",
+  "origins":      ["*://www.netflix.com/*"],
+  "scraper":      "bundled",
   "buttonLabel":  "Watch on Netflix",
   "activityType": "WATCHING"
 }

@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Syncr",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "Display what you're doing in Firefox as Discord Rich Presence.",
   "author": "Syncr Contributors",
 
@@ -17,6 +17,10 @@
     "storage"
   ],
 
+  "optional_permissions": [
+    "<all_urls>"
+  ],
+
   "browser_action": {
     "default_popup": "popup/popup.html",
     "default_title": "Syncr",
@@ -24,37 +28,12 @@
   },
 
   "background": {
-    "scripts": ["background/background.js"],
+    "scripts": [
+      "background/background.js",
+      "background/activity-injector.js"
+    ],
     "persistent": true
   },
-
-  "content_scripts": [
-    {
-      "matches": ["*://music.youtube.com/*"],
-      "js": ["activities/youtube-music/content-script.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["*://www.youtube.com/*"],
-      "js": ["activities/youtube/content-script.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["*://www.reddit.com/*", "*://old.reddit.com/*"],
-      "js": ["activities/reddit/content-script.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["*://mail.proton.me/*", "*://mail.protonmail.com/*"],
-      "js": ["activities/proton-mail/content-script.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["*://www.netflix.com/*"],
-      "js": ["activities/netflix/content-script.js"],
-      "run_at": "document_idle"
-    }
-  ],
 
   "web_accessible_resources": [
     "icons/icon.svg",
@@ -63,7 +42,8 @@
     "activities/*/logo.png",
     "activities/*/logo.svg",
     "activities/*/logo.jpg",
-    "activities/*/logo.webp"
+    "activities/*/logo.webp",
+    "activities/_runtime/runner.js"
   ],
 
   "browser_specific_settings": {

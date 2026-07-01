@@ -8,6 +8,8 @@
   "version":      "1.0.0",
   "author":       "Syncr Contributors",
   "urlPattern":   "*://music.youtube.com/*",
+  "origins":      ["*://music.youtube.com/*"],
+  "scraper":      "bundled",
   "buttonLabel":  "Listen on YouTube Music",
   "activityType": "LISTENING TO"
 }

@@ -8,7 +8,27 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Version history
 
-### 1.0.12 (current)
+### 1.0.13 (current)
+
+**Shipped with:** host v1.0.8+
+
+**Major change: dynamic activity loader**
+
+- Removed per-site `content_scripts` from `manifest.json`.
+- Site access requested at runtime when the user enables an activity (`optional_permissions` + `browser.permissions.request`).
+- Background `activity-injector.js` injects scrapers on matching tabs.
+- **Remote activities:** `scraper.json` on GitHub + declarative engine (`activities/_runtime/runner.js`). No new AMO for simple new sites.
+- **Bundled activities:** existing `content-script.js` files injected dynamically (YouTube, Reddit, Netflix, YouTube Music).
+- Proton Mail migrated to remote `scraper.json` (`"scraper": "remote"`).
+- Popup shows **Allow access** when an enabled activity lacks site permission.
+
+**Migration:** users upgrading from 1.0.12 must re-allow site access per activity in the popup.
+
+See [`docs/scraper-schema.md`](scraper-schema.md) for remote activity authoring.
+
+---
+
+### 1.0.12
 
 **Shipped with:** host v1.0.8
 
@@ -132,13 +152,15 @@ The Firefox extension version is stored in `extension/manifest.json`. Releases a
 
 ## Activities vs extension version matrix
 
-| Activity | Min extension | Content script added in |
-|---|---|---|
-| YouTube Music | (bundled early) | 1.0.3 era |
-| YouTube | (bundled early) | 1.0.3 era |
-| Reddit | 1.0.9 | 1.0.9 |
-| Proton Mail | 1.0.11 | 1.0.11 |
-| Netflix | 1.0.12 | 1.0.12 |
+| Activity | Min extension | Scraper type | Shipped in |
+|---|---|---|---|
+| YouTube Music | (bundled early) | bundled | 1.0.3 era |
+| YouTube | (bundled early) | bundled | 1.0.3 era |
+| Reddit | 1.0.9 | bundled | 1.0.9 |
+| Proton Mail | 1.0.13 | remote (`scraper.json`) | 1.0.11 |
+| Netflix | 1.0.12 | bundled | 1.0.12 |
+
+Remote activities (extension 1.0.13+): only `scraper.json` on GitHub, no new AMO if the declarative engine supports the site.
 
 ---
 

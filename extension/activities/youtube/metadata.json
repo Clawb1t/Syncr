@@ -7,7 +7,9 @@
   "logo":         "logo.png",
   "version":      "1.0.0",
   "author":       "Syncr Contributors",
-  "urlPattern":   "*://www.youtube.com/watch*",
+  "urlPattern":   "*://www.youtube.com/*",
+  "origins":      ["*://www.youtube.com/*"],
+  "scraper":      "bundled",
   "buttonLabel":  "Watch on YouTube",
   "activityType": "WATCHING"
 }

@@ -24,7 +24,7 @@ Open the Syncr popup to see what's currently being transmitted, search through a
 | **Proton Mail** | A generic "checking mail" status with no subjects, senders, or personal content |
 | **Netflix** | Browsing and search status, title pages, and playback with season, episode, artwork, and a progress bar |
 
-New activities are added over time. The popup picks them up automatically from GitHub. Host-side presence files hot-update without a full reinstall; new content scripts require an extension update.
+New activities are added over time. The popup picks them up automatically from GitHub. Host-side presence files hot-update without a full reinstall. Simple new activities ship as `scraper.json` on GitHub and only need you to allow site access in the popup (extension v1.0.13+).
 
 ---
 
@@ -302,6 +302,7 @@ Syncr is open source. Issues, activity ideas, and pull requests are welcome on [
 | [`docs/activities.md`](docs/activities.md) | Creating activities, review checklist, release process for maintainers |
 | [`docs/host-changelog.md`](docs/host-changelog.md) | What each native host version includes |
 | [`docs/extension-changelog.md`](docs/extension-changelog.md) | What each extension version includes |
+| [`docs/scraper-schema.md`](docs/scraper-schema.md) | Declarative remote activity format (no new AMO for simple sites) |
 | [`native-host/ACTIVITY_SDK.md`](native-host/ACTIVITY_SDK.md) | Presence builder API reference |
 
 The README also has a shorter [contributing overview](#contributing) and [Reddit case study](#case-study-the-reddit-activity).
