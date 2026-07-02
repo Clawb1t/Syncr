@@ -8,7 +8,7 @@
 #
 # Host-only release (native-host/version.json only, no extension bump):
 #   1. Bump native-host/version.json (e.g. 1.0.4)
-#   2. npm run update:host
+#   2. bun run update:host
 #   Pushes host source to main and uploads syncr-host.exe to the current latest GitHub release.
 #   Users detect the update via version.json on main; they download the exe from releases/latest.
 #
@@ -207,12 +207,12 @@ function Clear-LauncherDist {
 function Sign-Extension {
   param([string]$Version, [hashtable]$Amo)
 
-  if (-not (Test-Path (Join-Path $root 'node_modules'))) { npm install }
+  if (-not (Test-Path (Join-Path $root 'node_modules'))) { bun install }
   New-Item -ItemType Directory -Force -Path (Join-Path $root 'dist') | Out-Null
 
   Write-Step "Signing extension via AMO"
   $webExt = Join-Path $root 'node_modules\.bin\web-ext.cmd'
-  if (-not (Test-Path $webExt)) { Write-Err "web-ext not installed. Run: npm install" }
+  if (-not (Test-Path $webExt)) { Write-Err "web-ext not installed. Run: bun install" }
 
   & $webExt sign `
     --source-dir extension `
@@ -254,8 +254,8 @@ function Sign-Extension {
 function Build-Host {
   Write-Step "Building native host"
   Push-Location (Join-Path $root 'native-host')
-  if (-not (Test-Path node_modules)) { npm install } else { npm install --prefer-offline }
-  npm run build
+  if (-not (Test-Path node_modules)) { bun install } else { bun install --prefer-offline }
+  bun run build
   if ($LASTEXITCODE -ne 0) { Pop-Location; Write-Err "native-host build failed" }
   Pop-Location
   Write-Ok "dist/syncr-host.exe"
@@ -288,9 +288,9 @@ function Build-Launcher {
   Configure-WinCodeSign -Root $root
 
   Push-Location (Join-Path $root 'launcher')
-  if (-not (Test-Path node_modules)) { npm install } else { npm install --prefer-offline }
+  if (-not (Test-Path node_modules)) { bun install } else { bun install --prefer-offline }
 
-  npm run build -- "-c.directories.output=$outputArg"
+  bun run build -- "-c.directories.output=$outputArg"
   if ($LASTEXITCODE -ne 0) {
     Pop-Location
     Write-Err @"
@@ -300,7 +300,7 @@ Close Syncr Setup if it's open, then run:
   taskkill /F /IM "Syncr Setup.exe" /T
   taskkill /F /IM electron.exe /T
 
-Then re-run: npm run update
+Then re-run: bun run update
 "@
   }
   Pop-Location

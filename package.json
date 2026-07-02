@@ -5,8 +5,8 @@
   "description": "Syncr — Discord Rich Presence for Firefox",
   "scripts": {
     "build:xpi": "web-ext build --source-dir extension --artifacts-dir dist --overwrite-dest",
-    "validate:scrapers": "node scripts/validate-scraper.js",
-    "test:engine": "node scripts/test-engine.js",
+    "validate:scrapers": "bun scripts/validate-scraper.js",
+    "test:engine": "bun scripts/test-engine.js",
     "update": "powershell -ExecutionPolicy Bypass -File update.ps1",
     "update:host": "powershell -ExecutionPolicy Bypass -File update.ps1 -HostOnly",
     "update:setup": "powershell -ExecutionPolicy Bypass -File update.ps1 -SetupOnly",
