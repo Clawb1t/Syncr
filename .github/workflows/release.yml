@@ -11,6 +11,8 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +36,9 @@ jobs:
 
       - name: Install root dependencies
         run: npm ci
+
+      - name: Build Chrome extension
+        run: npm run build:chrome
 
       - name: Sign extension (AMO)
         env:
@@ -76,6 +81,13 @@ jobs:
           Copy-Item dist/syncr.xpi $env:RUNNER_TEMP/syncr.xpi -Force
           Write-Host "Signed XPI: dist/syncr.xpi"
 
+      - name: Upload signed XPI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-xpi
+          path: dist/syncr.xpi
+          retention-days: 1
+
       - name: Build native host
         run: |
           cd native-host
@@ -104,6 +116,7 @@ jobs:
           generate_release_notes: true
           files: |
             dist/syncr.xpi
+            dist/syncr-chrome.zip
             dist/syncr-host.exe
             launcher/dist/Syncr-Setup-*.exe
 
@@ -122,3 +135,42 @@ jobs:
             git commit -m "chore: updates.json for v${{ steps.meta.outputs.version }}"
             git push origin main
           }
+
+  build-linux:
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Download signed XPI
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-xpi
+          path: dist
+
+      - name: Sync launcher version
+        run: |
+          node -e "const fs=require('fs');const p='launcher/package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version='${{ needs.release.outputs.version }}';fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n')"
+
+      - name: Install native host runtime deps
+        working-directory: native-host
+        run: npm ci --omit=dev
+
+      - name: Build AppImage
+        working-directory: launcher
+        run: |
+          npm ci
+          npm run build:linux
+
+      - name: Upload AppImage to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: launcher/dist/Syncr-Setup-*.AppImage
+

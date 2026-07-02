@@ -189,3 +189,28 @@
 [2026-06-30T18:58:49.467Z][rpc] SET_ACTIVITY → {"type":2,"name":"Imperfect Girl","details":"ThxSoMch & thekid.ACE","state":"YouTube Music","instance":false,"timestamps":{"start":1782845467,"end":1782845957},"assets":{"large_image":"https://yt3.googleusercontent.com/PqX8P-tET-V12LJ1TrxHpcvVPbmgCxz6wxP0pc6QxnHCa14U9Hy-MIA6WjAaWPdMHnmCQ7_qlgsfKypc=w500-h500","large_text":"Imperfect Girl","small_image":"playing","small_text":"Playing"},"buttons":[{"label":"Listen on YouTube Music","url":"https://music.youtube.com/playlist?list=PLkUFPc7lRm2hvuQ5TFo1IZXxmID8wU0G4"}]}
 [2026-06-30T18:59:48.639Z][info] Extension disconnected — clearing presence.
 [2026-06-30T18:59:48.648Z][rpc] Disconnected (1521199365186785360)
+[2026-07-01T23:09:43.333Z][info] Native host started — pid=5 — 6 activity(s) loaded.
+[2026-07-01T23:09:43.335Z][info] Syncr SDK loaded.
+[2026-07-02T00:03:15.256Z][info] Native host started — pid=542211 — 6 activity(s) loaded.
+[2026-07-02T00:03:15.258Z][info] Syncr SDK loaded.
+[2026-07-02T00:03:15.277Z][error] unhandledRejection: Error: spawn /home/tay/.cache/node-systray/2.1.4/tray_linux_release EACCES
+[2026-07-02T00:04:13.389Z][info] Native host started — pid=542362 — 6 activity(s) loaded.
+[2026-07-02T00:04:13.390Z][info] Syncr SDK loaded.
+[2026-07-02T00:04:52.729Z][info] Native host started — pid=542487 — 6 activity(s) loaded.
+[2026-07-02T00:04:52.730Z][info] Syncr SDK loaded.
+[2026-07-02T00:04:57.292Z][info] Updater: host is current (1.0.9)
+[2026-07-02T00:04:57.547Z][info] Extension disconnected — clearing presence.
+[2026-07-02T00:05:26.229Z][info] Native host started — pid=542602 — 6 activity(s) loaded.
+[2026-07-02T00:05:26.231Z][info] Syncr SDK loaded.
+[2026-07-02T00:05:30.385Z][info] Updater: host is current (1.0.9)
+[2026-07-02T00:05:32.053Z][info] Extension disconnected — clearing presence.
+[2026-07-02T00:07:43.644Z][info] Native host started — pid=542944 — 6 activity(s) loaded.
+[2026-07-02T00:07:43.645Z][info] Syncr SDK loaded.
+[2026-07-02T00:07:47.796Z][info] Updater: host is current (1.0.9)
+[2026-07-02T00:07:49.470Z][info] Extension disconnected — clearing presence.
+[2026-07-02T00:08:17.152Z][info] Native host started — pid=543111 — 6 activity(s) loaded.
+[2026-07-02T00:08:17.153Z][info] Syncr SDK loaded.
+[2026-07-02T00:08:17.798Z][rpc] Connected — notfound.sh (1521199365186785360)
+[2026-07-02T00:08:17.799Z][rpc] SET_ACTIVITY → {"type":2,"instance":false,"name":"YouTube Music","details":"Browsing...","assets":{"large_image":"youtube_music_logo","large_text":"YouTube Music"}}
+[2026-07-02T00:08:19.586Z][info] Extension disconnected — clearing presence.
+[2026-07-02T00:08:19.596Z][rpc] Disconnected (1521199365186785360)
