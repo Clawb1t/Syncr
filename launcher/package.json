@@ -1,6 +1,6 @@
 {
     "name":  "syncr-launcher",
-    "version":  "1.0.25",
+    "version":  "1.0.26",
     "description":  "Syncr Setup - one-time installer for Syncr",
     "main":  "main.js",
     "author":  "Clawb1t",
@@ -27,13 +27,23 @@
                                 "xpi-utils.js"
                             ],
                   "extraResources":  [
-                      {
-                          "from":  "../native-host",
-                          "to":  "native-host",
-                          "filter":  ["**/*", "!**/*.log", "!host.bat", "!host-manifest.json", "!install-linux.sh", "!**/.DS_Store"]
-                      },
-                      { "from":  "../dist/syncr.xpi", "to":  "syncr.xpi" }
-                  ],
+                                         {
+                                             "from":  "../native-host",
+                                             "to":  "native-host",
+                                             "filter":  [
+                                                            "**/*",
+                                                            "!**/*.log",
+                                                            "!host.bat",
+                                                            "!host-manifest.json",
+                                                            "!install-linux.sh",
+                                                            "!**/.DS_Store"
+                                                        ]
+                                         },
+                                         {
+                                             "from":  "../dist/syncr.xpi",
+                                             "to":  "syncr.xpi"
+                                         }
+                                     ],
                   "win":  {
                               "target":  "nsis"
                           },
@@ -48,11 +58,13 @@
                                "runAfterFinish":  true
                            },
                   "linux":  {
-                      "target":  ["AppImage"],
-                      "category":  "Utility",
-                      "artifactName":  "Syncr-Setup-${version}.${ext}",
-                      "executableName":  "syncr-setup",
-                      "synopsis":  "Discord Rich Presence for Firefox"
-                  }
+                                "target":  [
+                                               "AppImage"
+                                           ],
+                                "category":  "Utility",
+                                "artifactName":  "Syncr-Setup-${version}.${ext}",
+                                "executableName":  "syncr-setup",
+                                "synopsis":  "Discord Rich Presence for Firefox"
+                            }
               }
 }
