@@ -261,6 +261,16 @@ function Build-Host {
   Write-Ok "dist/syncr-host.exe"
 }
 
+function Build-Chrome {
+  Write-Step "Building Chrome extension"
+  if (-not (Test-Path (Join-Path $root 'node_modules'))) { bun install } else { bun install --prefer-offline }
+  bun run build:chrome
+  if ($LASTEXITCODE -ne 0) { Write-Err "Chrome extension build failed" }
+  $chromeZip = Join-Path $root 'dist\syncr-chrome.zip'
+  if (-not (Test-Path $chromeZip)) { Write-Err "dist/syncr-chrome.zip not found after build" }
+  Write-Ok "dist/syncr-chrome.zip"
+}
+
 function Build-Launcher {
   param([string]$Version)
 
@@ -376,11 +386,12 @@ function Upload-SetupRelease {
 function Publish-ToGitHub {
   param([string]$Version, [string]$Tag)
 
-  $xpiPath   = Join-Path $root 'dist\syncr.xpi'
-  $hostPath  = Join-Path $root 'dist\syncr-host.exe'
-  $setupPath = Get-SetupExePath $Version
+  $xpiPath    = Join-Path $root 'dist\syncr.xpi'
+  $hostPath   = Join-Path $root 'dist\syncr-host.exe'
+  $chromePath = Join-Path $root 'dist\syncr-chrome.zip'
+  $setupPath  = Get-SetupExePath $Version
 
-  foreach ($f in @($xpiPath, $hostPath, $setupPath)) {
+  foreach ($f in @($xpiPath, $hostPath, $chromePath, $setupPath)) {
     if (-not (Test-Path $f)) { Write-Err "Missing release asset: $f" }
   }
 
@@ -433,11 +444,12 @@ function Get-GithubToken {
 function Publish-ReleaseAssets {
   param([string]$Version, [string]$Tag, [string]$Repo)
 
-  $xpiPath   = Join-Path $root 'dist\syncr.xpi'
-  $hostPath  = Join-Path $root 'dist\syncr-host.exe'
-  $setupPath = Get-SetupExePath $Version
+  $xpiPath    = Join-Path $root 'dist\syncr.xpi'
+  $hostPath   = Join-Path $root 'dist\syncr-host.exe'
+  $chromePath = Join-Path $root 'dist\syncr-chrome.zip'
+  $setupPath  = Get-SetupExePath $Version
 
-  Publish-AssetsToRelease -Tag $Tag -Repo $Repo -AssetPaths @($xpiPath, $hostPath, $setupPath) -CreateIfMissing -Title "Syncr v$Version"
+  Publish-AssetsToRelease -Tag $Tag -Repo $Repo -AssetPaths @($xpiPath, $hostPath, $chromePath, $setupPath) -CreateIfMissing -Title "Syncr v$Version"
 }
 
 function Get-LatestReleaseTag {
@@ -492,11 +504,7 @@ function Publish-AssetsToRelease {
     } else {
       Join-Path $root 'scripts\publish-release-assets.js'
     }
-    if ($CreateIfMissing -and $AssetPaths.Count -eq 3) {
-      node $uploadScript $Tag $Repo $AssetPaths[0] $AssetPaths[1] $AssetPaths[2]
-    } else {
-      node $uploadScript $Tag $Repo @AssetPaths
-    }
+    node $uploadScript $Tag $Repo @AssetPaths
     if ($LASTEXITCODE -ne 0) { Write-Err "GitHub release upload failed" }
     return
   }
@@ -619,6 +627,7 @@ if (-not $PublishOnly) {
   $amo = Get-AmoCredentials
   Sign-Extension -Version $version -Amo $amo
   Verify-SignedXpi -Version $version
+  Build-Chrome
   Build-Host
   Build-Launcher -Version $version
   Update-UpdatesJson -Version $version
@@ -626,6 +635,7 @@ if (-not $PublishOnly) {
   Write-Warn "PublishOnly - skipping host/launcher builds"
   Ensure-SignedXpi -Version $version -Wait
   Verify-SignedXpi -Version $version
+  Build-Chrome
   Update-UpdatesJson -Version $version
 }
 

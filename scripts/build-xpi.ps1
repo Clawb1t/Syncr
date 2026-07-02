@@ -1,5 +1,5 @@
 # Build unsigned Firefox extension zip for AMO signing (manual fallback).
-# For automated signing, use: npm run release
+# For automated signing, use: bun run release
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -12,10 +12,10 @@ Write-Host "Building Syncr extension v$version..." -ForegroundColor Cyan
 
 if (-not (Test-Path (Join-Path $root 'node_modules'))) {
     Write-Host "Installing dependencies..."
-    npm install
+    bun install
 }
 
-npm run build:xpi
+bun run build:xpi
 
 $built = Get-ChildItem (Join-Path $root 'dist') -Filter 'syncr-*.zip' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $built) {
@@ -38,4 +38,4 @@ Write-Host 'Done!' -ForegroundColor Green
 Write-Host "  Output: dist\$outName"
 Write-Host "  SHA-256: $hash"
 Write-Host ''
-Write-Host 'Tip: use npm run release for fully automated sign + publish.'
+Write-Host 'Tip: use bun run release for fully automated sign + publish.'

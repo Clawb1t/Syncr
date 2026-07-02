@@ -46,7 +46,7 @@ Every `emit` block must include at least one field the popup can show in **Now p
 | `details` + optional `state` | GitHub (“Browsing repository” / `owner/repo`) |
 | `browsing` + `browsingContext` | Feed/browse modes |
 
-`npm run validate:scrapers` fails if an emit block has none of these — catches blank popup text before release.
+`bun run validate:scrapers` fails if an emit block has none of these — catches blank popup text before release.
 
 Use `{url}` for `pageUrl` so Discord buttons open the current tab.
 
@@ -197,6 +197,6 @@ Engine version 1 scrapers still run via a compatibility shim in `evaluate.js` wh
 Validate locally:
 
 ```powershell
-npm run validate:scrapers
-npm run test:engine
+bun run validate:scrapers
+bun run test:engine
 ```

@@ -3,4 +3,4 @@ $root = Split-Path $PSScriptRoot -Parent
 Configure-WinCodeSign -Root $root
 
 Set-Location $PSScriptRoot
-npm run build 2>&1 | Tee-Object -FilePath (Join-Path $PSScriptRoot 'build-log.txt')
+bun run build 2>&1 | Tee-Object -FilePath (Join-Path $PSScriptRoot 'build-log.txt')

@@ -4,6 +4,7 @@
   "private": true,
   "description": "Syncr — Discord Rich Presence for Firefox",
   "scripts": {
+    "build:chrome": "bun scripts/build-chrome.js",
     "build:xpi": "web-ext build --source-dir extension --artifacts-dir dist --overwrite-dest",
     "validate:scrapers": "bun scripts/validate-scraper.js",
     "test:engine": "bun scripts/test-engine.js",
@@ -14,6 +15,7 @@
   },
   "devDependencies": {
     "adm-zip": "^0.5.18",
-    "web-ext": "^8.0.0"
+    "web-ext": "^8.0.0",
+    "webextension-polyfill": "^0.12.0"
   }
 }

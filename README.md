@@ -126,7 +126,7 @@ Contributions are welcome, especially new activities. Open an issue to discuss a
 - [ ] `extension/activities/{id}/logo.svg` or `logo.png`
 - [ ] `native-host/activities/{id}/presence.js` (with `clientId`)
 - [ ] Add `"{id}"` to `extension/activities/registry.json`
-- [ ] Run `npm run validate:scrapers` and `npm run test:engine`
+- [ ] Run `bun run validate:scrapers` and `bun run test:engine`
 - [ ] Test on the real site (SPA navigation, pause/play if media, browsing vs detail views)
 - [ ] Document privacy implications in the PR (what data is scraped and shown on Discord)
 
@@ -247,7 +247,7 @@ Push to `main`. Users on extension **1.0.20+** get the activity from GitHub; **C
 
 1. Fork → branch → implement (use Reddit or Proton Mail as references).
 2. Test manually: enable the activity in the popup, confirm Discord updates, navigate around the site (SPA routes, back button).
-3. Run `npm run validate:scrapers` and `npm run test:engine`.
+3. Run `bun run validate:scrapers` and `bun run test:engine`.
 4. Open a PR describing:
    - What site/activity you added or changed
    - What appears on Discord (screenshot helps)
@@ -260,7 +260,7 @@ You do **not** need AMO signing credentials or GitHub release tokens to contribu
 ### Local development (contributors)
 
 1. Load the extension temporarily in Firefox via `about:debugging` → **Load Temporary Add-on** → pick `extension/manifest.json` (needs **1.0.20+**).
-2. Install/run the native host via **Syncr Setup** or build `native-host` with `npm run build`.
+2. Install/run the native host via **Syncr Setup** or build `native-host` with `bun run build`.
 3. Enable your activity in the popup and visit the target site.
 
 For **presence-only** changes, edit `native-host/activities/{id}/presence.js` locally and restart the host.

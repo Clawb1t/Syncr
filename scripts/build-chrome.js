@@ -64,7 +64,7 @@ function main() {
   if (!key) throw new Error('chrome-key.json has no "key" field.');
 
   if (!fs.existsSync(POLYFILL_SRC)) {
-    throw new Error('webextension-polyfill not installed — run `npm install` at the repo root.');
+    throw new Error('webextension-polyfill not installed — run `bun install` at the repo root.');
   }
 
   const iconDir = path.join(SRC, 'icons');

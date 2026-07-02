@@ -17,10 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
+      - uses: oven-sh/setup-bun@v2
 
       - name: Read version
         id: meta
@@ -35,10 +32,10 @@ jobs:
           "tag=${{ github.ref_name }}" >> $env:GITHUB_OUTPUT
 
       - name: Install root dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Build Chrome extension
-        run: npm run build:chrome
+        run: bun run build:chrome
 
       - name: Sign extension (AMO)
         env:
@@ -51,7 +48,7 @@ jobs:
             exit 1
           }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          npx web-ext sign `
+          bunx web-ext sign `
             --source-dir extension `
             --artifacts-dir dist `
             --api-key $env:WEB_EXT_API_KEY `
@@ -91,8 +88,8 @@ jobs:
       - name: Build native host
         run: |
           cd native-host
-          npm ci
-          npm run build
+          bun install --frozen-lockfile
+          bun run build
 
       - name: Build Syncr Setup
         shell: pwsh
@@ -105,8 +102,8 @@ jobs:
           . ./scripts/configure-win-codesign.ps1
           Configure-WinCodeSign -Root $PWD
           Push-Location launcher
-          npm ci
-          npm run build
+          bun install --frozen-lockfile
+          bun run build
           Pop-Location
 
       - name: Create GitHub Release
@@ -143,10 +140,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
+      - uses: oven-sh/setup-bun@v2
 
       - name: Download signed XPI
         uses: actions/download-artifact@v4
@@ -160,17 +154,16 @@ jobs:
 
       - name: Install native host runtime deps
         working-directory: native-host
-        run: npm ci --omit=dev
+        run: bun install --frozen-lockfile --production
 
       - name: Build AppImage
         working-directory: launcher
         run: |
-          npm ci
-          npm run build:linux
+          bun install --frozen-lockfile
+          bun run build:linux
 
       - name: Upload AppImage to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           files: launcher/dist/Syncr-Setup-*.AppImage
-

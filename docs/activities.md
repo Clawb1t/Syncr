@@ -140,7 +140,7 @@ Rich example (DOM extraction, like Reddit posts):
 - Wrap output in `"emit"` blocks; use `"default": { "emit": { ... } }` for fallbacks.
 - Add `changeDetection` to avoid spamming Discord on unchanged polls.
 - Never scrape secrets, passwords, or private message bodies unless the PR explicitly documents it and maintainers approve.
-- Validate locally: `npm run validate:scrapers` and `npm run test:engine`.
+- Validate locally: `bun run validate:scrapers` and `bun run test:engine`.
 
 ### 3. `native-host/activities/{id}/presence.js`
 
@@ -230,8 +230,8 @@ See [`extension/activities/proton-mail/scraper.json`](../extension/activities/pr
 2. **Host:** Install via Syncr Setup, or build locally:
    ```powershell
    cd native-host
-   npm install
-   npm run build
+   bun install
+   bun run build
    ```
    Copy `dist/syncr-host.exe` to `%LOCALAPPDATA%\Syncr\` (or run Setup).
 3. For **presence-only** edits, copy your `presence.js` to `%LOCALAPPDATA%\Syncr\activities\{id}\presence.js` and reconnect the host (popup Reconnect).
@@ -240,8 +240,8 @@ See [`extension/activities/proton-mail/scraper.json`](../extension/activities/pr
 6. Test navigation: SPA route changes, back button, tab close, multiple activities at once.
 
 ```powershell
-npm run validate:scrapers
-npm run test:engine
+bun run validate:scrapers
+bun run test:engine
 ```
 
 ---
@@ -266,7 +266,7 @@ Include in the PR description:
 
 - [ ] Activity ID consistent across all files (`metadata.json`, `presence.js`, `registry.json`).
 - [ ] `metadata.json` has `scraper: "remote"`, `origins`, and `minEngineVersion`.
-- [ ] `scraper.json` validates (`npm run validate:scrapers`).
+- [ ] `scraper.json` validates (`bun run validate:scrapers`).
 - [ ] Scraper does not over-scrape or leak sensitive data.
 - [ ] `changeDetection` present where polling would otherwise spam updates.
 - [ ] `presence.js` uses SDK; strings fit Discord limits (128 chars for details/state/name).
@@ -381,8 +381,8 @@ Contributors often test with their own Discord app. Before release:
 | Presence template | `native-host/activities/_template/presence.js` |
 | Architecture | `docs/architecture.md` |
 | Host versions | `docs/host-changelog.md` |
-| Validate scrapers | `npm run validate:scrapers` |
-| Test engine | `npm run test:engine` |
+| Validate scrapers | `bun run validate:scrapers` |
+| Test engine | `bun run test:engine` |
 | Full publish | `.\update.ps1` |
 | Host-only publish | `.\update.ps1 -HostOnly` |
 | Build only (no git) | `.\update.ps1 -BuildOnly` |

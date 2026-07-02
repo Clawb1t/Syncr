@@ -95,7 +95,11 @@ info "Using Node at $NODE_BIN ($("$NODE_BIN" -v))"
 # ── Runtime dependencies ──────────────────────────────────────────────────────
 if [ ! -d "$HERE/node_modules/discord-rpc" ]; then
   info "Installing native host dependencies…"
-  (cd "$HERE" && npm install --omit=dev >/dev/null 2>&1)
+  if command -v bun >/dev/null 2>&1; then
+    (cd "$HERE" && bun install --production >/dev/null 2>&1)
+  else
+    (cd "$HERE" && npm install --omit=dev >/dev/null 2>&1)
+  fi
 fi
 
 # ── Install host files ────────────────────────────────────────────────────────

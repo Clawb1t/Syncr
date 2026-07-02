@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Create/update a GitHub release and upload assets (no gh CLI required).
- * Usage: node scripts/publish-github-release.js <tag> <repo> <xpi> <host> <setup>
+ * Usage: node scripts/publish-github-release.js <tag> <owner/repo> <file> [file...]
  */
 'use strict';
 
@@ -9,9 +9,9 @@ const fs = require('fs');
 const https = require('https');
 const path = require('path');
 
-const [tag, repo, xpiPath, hostPath, setupPath] = process.argv.slice(2);
-if (!tag || !repo || !xpiPath || !hostPath || !setupPath) {
-  console.error('Usage: node scripts/publish-github-release.js <tag> <owner/repo> <xpi> <host> <setup>');
+const [tag, repo, ...assetPaths] = process.argv.slice(2);
+if (!tag || !repo || !assetPaths.length) {
+  console.error('Usage: node scripts/publish-github-release.js <tag> <owner/repo> <file> [file...]');
   process.exit(1);
 }
 
@@ -32,7 +32,7 @@ Fine-grained token:
   3. Permissions → Repository permissions → Contents: Read and write
   4. Paste into .env as GITHUB_TOKEN=github_pat_...
 
-Then re-run: npm run update -- -PublishOnly
+Then re-run: bun run update -- -PublishOnly
 `;
 
 function loadEnv() {
@@ -167,11 +167,7 @@ async function getOrCreateRelease(token, repoSlug) {
 
 async function main() {
   const token = loadEnv();
-  const assets = [
-    path.resolve(xpiPath),
-    path.resolve(hostPath),
-    path.resolve(setupPath),
-  ];
+  const assets = assetPaths.map((p) => path.resolve(p));
   for (const a of assets) {
     if (!fs.existsSync(a)) throw new Error(`Missing: ${a}`);
   }

@@ -159,7 +159,7 @@ async function waitForApproved(issuer, secret, targetVersion) {
 
   throw new Error(
     `Timed out after ${waitMinutes} minutes waiting for AMO to approve v${targetVersion}. ` +
-    'Check https://addons.mozilla.org/developers/addons — then re-run: npm run update -- -PublishOnly'
+    'Check https://addons.mozilla.org/developers/addons — then re-run: bun run update -- -PublishOnly'
   );
 }
 
