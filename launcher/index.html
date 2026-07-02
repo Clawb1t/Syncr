@@ -68,6 +68,16 @@ html, body {
 .done-title { font-size: 18px; font-weight: 700; }
 .done-lead { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.55; max-width: 320px; }
 .done-lead strong { color: var(--text); }
+.autostart-toggle {
+  display: flex; align-items: flex-start; gap: 9px;
+  font-size: 12.5px; color: var(--muted); cursor: pointer;
+  max-width: 320px; line-height: 1.45; text-align: left;
+}
+.autostart-toggle input {
+  width: 15px; height: 15px; margin-top: 1px;
+  accent-color: var(--accent); cursor: pointer; flex: none;
+}
+.autostart-toggle:hover { color: var(--text); }
 .btn {
   width: 100%; padding: 12px; border: none; border-radius: 10px;
   font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer;
@@ -99,6 +109,10 @@ html, body {
     <div class="done-lead hidden" id="done-lead">
       Click <strong>Add to Firefox</strong> in the window that opened, then open Discord and start browsing.
     </div>
+    <label class="autostart-toggle hidden" id="autostart-toggle">
+      <input type="checkbox" id="autostart-check" />
+      <span>Show the Syncr status icon in my tray on login</span>
+    </label>
     <div class="error-box hidden" id="error-box"></div>
     <button class="btn hidden" id="btn-close-app">Close</button>
   </div>

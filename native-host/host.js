@@ -14,6 +14,10 @@ const path = require('path');
 const { loadActivities, getSyncr } = require('./activity-loader');
 const { RPCManager }     = require('./rpc-manager');
 const { LOG_FILE }       = require('./paths');
+const { startStatusTray } = require('./tray-controller');
+
+// `--tray` runs a standalone status-tray agent (no browser, no presence).
+const AGENT_MODE = process.argv.includes('--tray');
 
 // File log — next to syncr-host.exe (not inside pkg snapshot)
 let logStream;
@@ -25,6 +29,22 @@ try {
 
 const activities = loadActivities();
 const rpc        = new RPCManager();
+
+// ---------------------------------------------------------------------------
+// Status tray — a live "is it working?" indicator. Fully guarded: if the tray
+// library or its OS deps are missing, the host keeps working headless.
+// ---------------------------------------------------------------------------
+
+let statusTray = null;
+try {
+  statusTray = startStatusTray({ agentMode: AGENT_MODE, onQuit: () => shutdown() });
+} catch {
+  statusTray = null;
+}
+
+rpc.onStateChange = (connected) => {
+  try { statusTray && statusTray.setDiscord(connected); } catch {}
+};
 
 // ---------------------------------------------------------------------------
 // Outbound native messaging (host → extension)
@@ -45,7 +65,7 @@ function writeMessage(msg) {
 
 let buf = Buffer.alloc(0);
 
-process.stdin.on('data', chunk => {
+if (!AGENT_MODE) process.stdin.on('data', chunk => {
   buf = Buffer.concat([buf, chunk]);
 
   while (buf.length >= 4) {
@@ -152,12 +172,21 @@ async function handleMessage({ type, activityId, data }) {
       catch (err) { log('error', `${activityId}.formatPresence(): ${err.message}`); return; }
 
       await rpc.setActivity(activity.clientId, presence);
+      try {
+        statusTray && statusTray.setActivity({
+          id:      activityId,
+          name:    activity.name,
+          details: presence && presence.details,
+          state:   presence && presence.state,
+        });
+      } catch {}
       break;
     }
 
     case 'activity:clear': {
       const activity = activities.get(activityId);
       await rpc.clearActivity(activity?.clientId);
+      try { statusTray && statusTray.setActivity(null); } catch {}
       break;
     }
 
@@ -171,15 +200,18 @@ async function handleMessage({ type, activityId, data }) {
 // ---------------------------------------------------------------------------
 
 process.stdin.on('end', async () => {
+  if (AGENT_MODE) return;
   log('info', 'Extension disconnected — clearing presence.');
   await rpc.clearActivity();
   await rpc.destroyAll();
+  try { statusTray && statusTray.shutdown(); } catch {}
   process.exit(0);
 });
 
 async function shutdown() {
   await rpc.clearActivity();
   await rpc.destroyAll();
+  try { statusTray && statusTray.shutdown(); } catch {}
   process.exit(0);
 }
 
@@ -210,6 +242,7 @@ try {
 // ---------------------------------------------------------------------------
 
 setTimeout(async () => {
+  if (AGENT_MODE) return;
   try {
     handleMessage({ type: 'host:checkUpdates', data: { apply: true } }).catch(err => {
       log('error', `Update check failed: ${err.message}`);

@@ -1,5 +1,6 @@
-# Secrets — never commit this
+# Secrets — never commit these
 extension/secrets.js
+chrome-key.pem
 .env
 
 # Dependencies
@@ -8,3 +9,7 @@ node_modules/
 # Build output
 dist/
 launcher/dist/
+*.AppImage
+
+# Native host runtime state
+native-host/status.json

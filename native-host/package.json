@@ -23,10 +23,13 @@
       "sdk/validate.js"
     ],
     "assets": [],
-    "targets": ["node18-win-x64"]
+    "targets": [
+      "node18-win-x64"
+    ]
   },
   "dependencies": {
-    "discord-rpc": "^4.0.1"
+    "discord-rpc": "^4.0.1",
+    "systray2": "^2.1.4"
   },
   "devDependencies": {
     "pkg": "^5.8.1"
