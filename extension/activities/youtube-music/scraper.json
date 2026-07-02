@@ -4,7 +4,7 @@
   "events": ["yt-navigate-finish"],
   "changeDetection": {
     "seekThreshold": 5,
-    "compareFields": ["title", "artist", "paused", "albumArt"],
+    "compareFields": ["title", "artist", "paused", "albumArt", "videoId"],
     "playbackFields": { "time": "currentTime", "paused": "paused" }
   },
   "rules": [
@@ -22,6 +22,32 @@
             "replacement": "=w500-h500"
           }
         },
+        "songLinkHref": {
+          "coalesce": [
+            { "selectorAttr": { "selector": "ytmusic-player-bar a[href*=\"watch?v=\"]", "attr": "href" } },
+            { "selectorAttr": { "selector": "a.ytp-title-link.yt-uix-sessionlink", "attr": "href" } },
+            { "selectorAttr": { "selector": ".title.ytmusic-player-bar a", "attr": "href" } }
+          ]
+        },
+        "videoId": {
+          "coalesce": [
+            { "urlParam": "v" },
+            {
+              "regexReplace": {
+                "source": "{songLinkHref}",
+                "pattern": "[?&]v=([^&]+)",
+                "replacement": "$1"
+              }
+            },
+            {
+              "regexReplace": {
+                "source": "{albumArtRaw}",
+                "pattern": "/vi/([^/]+)/",
+                "replacement": "$1"
+              }
+            }
+          ]
+        },
         "playback": { "video": { "selector": "video", "minReadyState": 2 } }
       },
       "require": ["title", "playback"],
@@ -30,10 +56,11 @@
         "artist": "{artist}",
         "album": "{album}",
         "albumArt": "{albumArt}",
+        "videoId": "{videoId}",
         "currentTime": "{playback.currentTime}",
         "duration": "{playback.duration}",
         "paused": "{playback.paused}",
-        "pageUrl": "{url}"
+        "pageUrl": "https://music.youtube.com/watch?v={videoId}"
       }
     }
   ],

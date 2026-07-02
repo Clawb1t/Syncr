@@ -11,7 +11,7 @@ module.exports = {
   clientId:   '1521199365186785360',
   urlPattern: '*://music.youtube.com/*',
 
-  formatPresence({ browsing, title, artist, album, albumArt, currentTime, duration, paused, pageUrl }, syncr) {
+  formatPresence({ browsing, title, artist, album, albumArt, currentTime, duration, paused, pageUrl, videoId }, syncr) {
     if (browsing) {
       return syncr.browsing({
         type:    syncr.ActivityType.Listening,
@@ -29,6 +29,8 @@ module.exports = {
       : 'YouTube Music';
     const stateText = paused ? `⏸ Paused - ${albumText}` : albumText;
 
+    const listenUrl = resolveListenUrl({ pageUrl, videoId, title: songTitle, artist: artistName });
+
     const builder = syncr.presence()
       .listening(songTitle)
       .details(artistName)
@@ -40,14 +42,25 @@ module.exports = {
         album:    album && album.toLowerCase() !== songTitle.toLowerCase() ? album : undefined,
         artist:   artistName,
         title:    songTitle,
-        url:      pageUrl?.startsWith('https://') ? pageUrl : undefined,
+        url:      listenUrl,
         imageUrl: albumArt?.startsWith('https://') ? albumArt : undefined,
       });
 
-    if (pageUrl?.startsWith('https://')) {
-      builder.button('Listen on YouTube Music', pageUrl);
-    }
+    builder.button('Listen on YouTube Music', listenUrl);
 
     return builder.build();
   },
 };
+
+function resolveListenUrl({ pageUrl, videoId, title, artist }) {
+  const id = String(videoId ?? '').trim();
+  if (id) return `https://music.youtube.com/watch?v=${id}`;
+
+  const url = String(pageUrl ?? '').trim();
+  if (url.includes('watch?v=') && !/\/watch\?v=$/.test(url)) return url;
+
+  const q = [title, artist].filter(Boolean).join(' ').trim();
+  if (q) return `https://music.youtube.com/search?q=${encodeURIComponent(q)}`;
+
+  return url.startsWith('https://') ? url : 'https://music.youtube.com/';
+}
