@@ -6,7 +6,8 @@
     "author":  "Clawb1t",
     "scripts":  {
                     "start":  "electron .",
-                    "build":  "electron-builder --win"
+                    "build":  "electron-builder --win",
+                    "build:linux":  "electron-builder --linux AppImage"
                 },
     "devDependencies":  {
                             "electron":  "^35.0.0",
@@ -25,6 +26,14 @@
                                 "renderer.js",
                                 "xpi-utils.js"
                             ],
+                  "extraResources":  [
+                      {
+                          "from":  "../native-host",
+                          "to":  "native-host",
+                          "filter":  ["**/*", "!**/*.log", "!host.bat", "!host-manifest.json", "!install-linux.sh", "!**/.DS_Store"]
+                      },
+                      { "from":  "../dist/syncr.xpi", "to":  "syncr.xpi" }
+                  ],
                   "win":  {
                               "target":  "nsis"
                           },
@@ -37,6 +46,13 @@
                                "shortcutName":  "Syncr Setup",
                                "artifactName":  "Syncr-Setup-${version}.exe",
                                "runAfterFinish":  true
-                           }
+                           },
+                  "linux":  {
+                      "target":  ["AppImage"],
+                      "category":  "Utility",
+                      "artifactName":  "Syncr-Setup-${version}.${ext}",
+                      "executableName":  "syncr-setup",
+                      "synopsis":  "Discord Rich Presence for Firefox"
+                  }
               }
 }

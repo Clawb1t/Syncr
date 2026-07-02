@@ -24,6 +24,16 @@ class RPCManager {
     this._clients    = new Map(); // clientId → { client, ready }
     this._activeId   = null;
     this._lastImage  = new Map(); // clientId → last primary image URL sent
+    this.onStateChange = null;    // (connected:boolean) → void — drives the status tray
+  }
+
+  _emitState() {
+    if (typeof this.onStateChange !== 'function') return;
+    let connected = false;
+    for (const entry of this._clients.values()) {
+      if (entry.ready) { connected = true; break; }
+    }
+    try { this.onStateChange(connected); } catch {}
   }
 
   async _getClient(clientId) {
@@ -37,12 +47,14 @@ class RPCManager {
     client.on('ready', () => {
       entry.ready = true;
       log(`Connected — ${client.user?.username} (${clientId})`);
+      this._emitState();
     });
 
     client.on('disconnected', () => {
       entry.ready = false;
       this._clients.delete(clientId);
       log(`Disconnected (${clientId})`);
+      this._emitState();
     });
 
     try {
